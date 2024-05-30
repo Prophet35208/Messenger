@@ -10,8 +10,7 @@ Client::Client(QWidget *parent)
 
     qlistmodel *model = new qlistmodel(this);
     ui->listView->setModel(model);
-    ui->listView->scrollToBottom();
-    ui->listView->setAutoScroll(true);
+
 }
 
 Client::~Client()

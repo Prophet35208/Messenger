@@ -4,12 +4,27 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QVector>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QtSql>
+
+// Заготовка к сообщениям
+struct message {
+    int user_id;
+    QChar str[300];
+};
+
+struct messages {
+    int num_of_messages;
+    message* message_mas;
+};
 
 class Server : public QTcpServer
 {
     Q_OBJECT
 public:
-    Server();
+    Server(const QString& path);
+    ~Server();
 // Буфер для сокета
     QTcpSocket *socket;
 
@@ -18,6 +33,11 @@ private:
     QVector <QTcpSocket*> sockets;
 // Данные передаём в типе QByteArray,
     QByteArray data;
+// Переменная для базы данных
+    QSqlDatabase m_db;
+
+
+
 // Передача данных клиенту (строки)
     void SentToClient(QString str);
 

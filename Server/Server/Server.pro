@@ -1,5 +1,5 @@
 QT = core
-QT += network
+QT += network sql
 
 CONFIG += c++17 cmdline
 
