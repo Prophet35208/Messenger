@@ -14,6 +14,11 @@ Registration::Registration(QWidget *parent)
     connect (socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
 // Не работает, нужно понять почему
     connect (socket, SIGNAL(connected()), this, SLOT(slotConnectionEstablished()));
+
+
+// Скрываем ненужные элементы
+    ui->text_pass_confirmation->setVisible(false);
+    ui->label_password_confirmation->setVisible(false);
 }
 
 Registration::~Registration()
@@ -88,7 +93,33 @@ void Registration::on_pushButton_2_clicked()
 }
 
 
-void Registration::on_pushButton_clicked()
+
+void Registration::on_pushButton_register_clicked()
 {
+    if (registry_mod){
+        // Если мод уже стоит, значит кнопка должна выйти из режима
+        registry_mod = false;
+        ui->pushButton_register->setText("Зарегистрироваться");
+        ui->pushButton_signin->setText("Войти");
+        ui->label_up->setText("Вход");
+        //Скрываем лишние элементы
+        ui->text_pass_confirmation->setVisible(false);
+        ui->text_pass_confirmation->setEnabled(false);
+        ui->label_password_confirmation->setVisible(false);
+        ui->label_password_confirmation->setEnabled(false);
+    }
+    else
+    // Если мод не стоит, значит входим в режим регистрации
+    {
+        registry_mod = true;
+        ui->pushButton_register->setText("Отмена");
+        ui->pushButton_signin->setText("Подтвердить");
+        ui->label_up->setText("Регистрация");
+        //Снова показываем элементы
+        ui->text_pass_confirmation->setVisible(true);
+        ui->text_pass_confirmation->setEnabled(true);
+        ui->label_password_confirmation->setVisible(true);
+        ui->label_password_confirmation->setEnabled(true);
+    }
 }
 

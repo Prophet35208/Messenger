@@ -6,8 +6,8 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    Client w;
-    w.show();
+    //Client w;
+    //w.show();
     Registration r;
     r.show();
 

@@ -21,7 +21,8 @@ private slots:
     void on_pushButton_3_clicked();
     void on_pushButton_2_clicked();
 
-    void on_pushButton_clicked();
+
+    void on_pushButton_register_clicked();
 
 public slots:
     void slotReadyRead();
@@ -31,6 +32,9 @@ private:
     QTcpSocket* socket;
     QByteArray data;
     void SendToServer(QString str);
+
+    // Режим работы для кнопок. От него зависит их название
+    bool registry_mod=false;
 };
 
 #endif // REGISTRATION_H
