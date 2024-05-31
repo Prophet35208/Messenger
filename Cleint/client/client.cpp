@@ -10,6 +10,10 @@ Client::Client(QWidget *parent)
 
     qlistmodel *model = new qlistmodel(this);
     ui->listView->setModel(model);
+    ui->listView_3->setModel(model);
+    ui->listView->setTextElideMode(Qt::ElideNone);
+    ui->listView->setResizeMode(QListView::Adjust);
+
 
 }
 

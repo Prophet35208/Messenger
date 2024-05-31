@@ -6,8 +6,8 @@ qlistmodel::qlistmodel(QObject *parent) :
 
     // Здесь нужно инициализировать список сообщений. Пока что тут статика
 
-
-    list << "Nick: Hello"<<"Dan: Hi";
+    // Юзаем WordWrap:true для автоматического переноса слов! Не будет работать при одном большом слове, появится слайдер
+    list << "Nick: Hello"<<"Dan: HiGGGG GGGGGGGGG GGGGGGGGGGGGGGG GGGGGGGGGGGGG GGGGGGGGGGGGGG GGGGGGGGGG GGGGGGGGGf";
 }
 
 int qlistmodel::rowCount(const QModelIndex &parent) const
@@ -23,6 +23,8 @@ QVariant qlistmodel::data(const QModelIndex &index, int role) const
     switch(role){
     case Qt::DisplayRole:
         return list.at(index.row());
+    case Qt::TextAlignmentRole:
+        return Qt::AlignRight;
     default:
         return QVariant();
     }

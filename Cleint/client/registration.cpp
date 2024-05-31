@@ -87,3 +87,8 @@ void Registration::on_pushButton_2_clicked()
     socket->write(data);
 }
 
+
+void Registration::on_pushButton_clicked()
+{
+}
+
