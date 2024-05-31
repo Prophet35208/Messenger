@@ -46,11 +46,11 @@ void Registration::slotReadyRead()
         str_list = str.split(" ");
         // Регистрация прошла
         if (str_list[0]=="1"){
-            this->ui->reg_status->setText("Reg Ok");
+            this->ui->label_reg_status->setText("Reg Ok");
         }
         // Регистрация не прошла
         if (str_list[0]=="-1"){
-            this->ui->reg_status->setText("Reg Not Ok");
+            this->ui->label_reg_status->setText("Reg Not Ok");
         }
 
 

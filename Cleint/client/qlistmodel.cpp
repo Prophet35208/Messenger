@@ -24,7 +24,7 @@ QVariant qlistmodel::data(const QModelIndex &index, int role) const
     case Qt::DisplayRole:
         return list.at(index.row());
     case Qt::TextAlignmentRole:
-        return Qt::AlignRight;
+        return Qt::AlignRight;  // Добавление условия позволит некоторый текст уводить вправо, другой-влево!
     default:
         return QVariant();
     }
