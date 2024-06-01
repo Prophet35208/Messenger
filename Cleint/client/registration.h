@@ -29,10 +29,22 @@ private:
     Ui::Registration *ui;
     QTcpSocket* socket;
     QByteArray data;
-    void SendToServer(QString str);
 
     // Режим работы для кнопок. От него зависит их название
     bool registry_mod=false;
+
+    // Отправка на сервер строки
+    void SendToServer(QString str);
+
+    // Обработчики сообщений от сервера
+    void ProcessLoginRespond(QStringList& str_list);
+    void ProcessRegistrationRespond(QStringList& str_list);
+
+    // Вход и выход в режим регистрации
+    void RegistryOn();
+    void RegistryOff();
+
+
 };
 
 #endif // REGISTRATION_H

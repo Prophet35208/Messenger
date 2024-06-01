@@ -70,33 +70,16 @@ void Server::slotReadyRead()
         // Строку получили. Теперь её нужно обработать. Для этого смотрим на первое число - флаг.
         QStringList str_list;
         //and password = (:password)
-        str_list = str.split(" ");
+        str_list = str.split("$");
+
+
+
+
         if (str_list[0]=="1"){
-            QSqlQuery query;
-            query.prepare("SELECT login FROM user WHERE login = :login and password = :password");
-            query.bindValue(":login", str_list[1]);
-            query.bindValue(":password", str_list[2]);
-            if (query.exec())
-            {
-
-                if (query.next())
-                {
-                    // Пользователь существует и пароль подходит. Теперь нужно передать, что он подключился
-                    // todo: В будущем нужно сделать передачу некоторогот значения, которое бы сгенерировалось
-                    // сервером и свидетельствовало о том, что пользователь авторизован. Пока что возвратим код 1
-                    SentToClient("1");
-
-                }
-                else
-                {
-                    // Такого пользователя нет или пароль не верный. Возвращаем код ошибки
-                    SentToClient("-1");
-                }
-            }
-            else
-            {
-                qDebug() << "Ошибка при выполнении query-запроса";
-            }
+            ProcessLogin (str_list);
+        }
+        if (str_list[0]=="2"){
+            ProcessRegistry (str_list);
         }
 
 
@@ -115,4 +98,76 @@ void Server::SentToClient(QString str)
     QDataStream out(&data, QIODevice::WriteOnly);
     out << str;
     socket->write(data);
+}
+// Обрабатываем регистрацию. Смотрим есть ли такой человек, если нет - то одобряем.
+void Server::ProcessRegistry(QStringList &str_list)
+{
+    QSqlQuery query;
+    query.prepare("SELECT login FROM user WHERE login = :login");
+    query.bindValue(":login", str_list[1]);
+
+    if (query.exec())
+    {
+
+        if (query.next())
+        {
+            // Пользователь существует, значит аккаунт создать нельзя. Передаём код 2.
+            SentToClient("2");
+
+        }
+        else
+        {
+            // Такого пользователя нет, аккаунт создать можно. Передаём код 3
+            // Но сначала создаём запись в БД.
+
+            query.prepare("INSERT INTO user (login, password) VALUES (:login, :password)");
+            query.bindValue(":login", str_list[1]);
+            query.bindValue(":password", str_list[2]);
+
+            if(query.exec())
+            {
+                 SentToClient("3");
+            }
+            else
+            {
+                qDebug() << "AddUser error:"
+                         << query.lastError();
+            }
+
+        }
+    }
+    else
+    {
+        qDebug() << "Ошибка при выполнении query-запроса";
+    }
+
+}
+
+void Server::ProcessLogin(QStringList &str_list)
+{
+    QSqlQuery query;
+    query.prepare("SELECT login FROM user WHERE login = :login and password = :password");
+    query.bindValue(":login", str_list[1]);
+    query.bindValue(":password", str_list[2]);
+    if (query.exec())
+    {
+
+        if (query.next())
+        {
+            // Пользователь существует и пароль подходит. Теперь нужно передать, что он подключился
+            // todo: В будущем нужно сделать передачу некоторогот значения, которое бы сгенерировалось
+            // сервером и свидетельствовало о том, что пользователь авторизован. Пока что возвратим код 1
+            SentToClient("1");
+
+        }
+        else
+        {
+            // Такого пользователя нет или пароль не верный. Возвращаем код ошибки
+            SentToClient("-1");
+        }
+    }
+    else
+    {
+        qDebug() << "Ошибка при выполнении query-запроса";
+    }
 }

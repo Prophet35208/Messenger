@@ -36,10 +36,13 @@ private:
 // Переменная для базы данных
     QSqlDatabase m_db;
 
-
-
 // Передача данных клиенту (строки)
     void SentToClient(QString str);
+
+// Обработчик регистрации. Вызвать при коде 2, передать массив строк - параметров
+    void ProcessRegistry(QStringList& str_list);
+// Обработчик регистрации. Вызвать при коде 2, передать массив строк - параметров
+    void ProcessLogin (QStringList& str_list);
 
 public slots:
 // Обрабтчик входящих подключений
