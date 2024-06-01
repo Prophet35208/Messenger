@@ -10,9 +10,9 @@ Registration::Registration(QWidget *parent)
     socket = new QTcpSocket(this);
 // Принимаем сигнал сокета о том, что можно читать с него
     connect(socket, SIGNAL(readyRead()), this, SLOT(slotReadyRead()));
-// Удалем сокет, который задисконектился
+// Удалем сокет, который задисконектился. Плюсом добавим ещё один обработчик
     connect (socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
-// Не работает, нужно понять почему
+//Дебаг
     connect (socket, SIGNAL(connected()), this, SLOT(slotConnectionEstablished()));
 
 
@@ -24,15 +24,6 @@ Registration::Registration(QWidget *parent)
 Registration::~Registration()
 {
     delete ui;
-}
-
-
-
-void Registration::on_pushButton_3_clicked()
-{
-    socket->connectToHost("127.0.0.1",2323);
-    if(socket->waitForConnected(3000))
-        qDebug() << "All is ok";
 }
 
 void Registration::slotReadyRead()
@@ -72,6 +63,7 @@ void Registration::slotConnectionEstablished()
     qDebug() << "Connection OK";
 }
 
+
 void Registration::SendToServer(QString str)
 {
     data.clear();
@@ -82,7 +74,7 @@ void Registration::SendToServer(QString str)
 }
 
 // Передаём информацию для входа. В начале код 1, чтобы сервер понял, что ему присылают данные на вход.
-void Registration::on_pushButton_2_clicked()
+void Registration::on_pushButton_signin_clicked()
 {
     data.clear();
     QDataStream out(&data, QIODevice::WriteOnly);
@@ -121,5 +113,17 @@ void Registration::on_pushButton_register_clicked()
         ui->label_password_confirmation->setVisible(true);
         ui->label_password_confirmation->setEnabled(true);
     }
+}
+
+// Кнопка соединения
+void Registration::on_pushButton_connect_clicked()
+{
+    socket->connectToHost("127.0.0.1",2323);
+    if(socket->waitForConnected(3000)){
+        qDebug() << "All is ok";
+        ui->pushButton_register->setEnabled(true);
+        ui->pushButton_signin->setEnabled(true);
+    }
+
 }
 

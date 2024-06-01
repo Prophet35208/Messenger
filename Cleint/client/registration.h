@@ -18,11 +18,9 @@ public:
 
 private slots:
 
-    void on_pushButton_3_clicked();
-    void on_pushButton_2_clicked();
-
-
+    void on_pushButton_signin_clicked();
     void on_pushButton_register_clicked();
+    void on_pushButton_connect_clicked();
 
 public slots:
     void slotReadyRead();
