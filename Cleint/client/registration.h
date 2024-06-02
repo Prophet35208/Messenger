@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QTcpSocket>
+#include <client.h>
 
 namespace Ui {
 class Registration;
@@ -29,6 +30,8 @@ private:
     Ui::Registration *ui;
     QTcpSocket* socket;
     QByteArray data;
+    // Пока что форма клиента будет открываться из окна регистрации.
+    Client* w;
 
     // Режим работы для кнопок. От него зависит их название
     bool registry_mod=false;

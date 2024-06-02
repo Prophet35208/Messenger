@@ -60,6 +60,7 @@ void Server::slotReadyRead()
     // Используем QDataStream для обработки ввода
     // (Возможно стоит установить конкретную версию)
     QDataStream in(socket);
+    in.setVersion(QDataStream::Version::Qt_6_7);
     // Смотрим, правильно ли инициализировался объект
     if(in.status()== QDataStream::Ok)
     {
@@ -67,14 +68,20 @@ void Server::slotReadyRead()
         //Теперь выведем данные из потока в консоль
         QString str;
         in >> str;
+
+        //Тест
+        if(str == "4"){
+            // Получаем структуру
+            message mas_mes[2];
+            int num_of_messages;
+
+           num_of_messages = ChatUnSerialization(in,mas_mes);
+        }
+
         // Строку получили. Теперь её нужно обработать. Для этого смотрим на первое число - флаг.
         QStringList str_list;
         //and password = (:password)
         str_list = str.split("$");
-
-
-
-
         if (str_list[0]=="1"){
             ProcessLogin (str_list);
         }
@@ -170,4 +177,28 @@ void Server::ProcessLogin(QStringList &str_list)
     {
         qDebug() << "Ошибка при выполнении query-запроса";
     }
+}
+
+void Server::ChatSerialization(QDataStream &stream, message *mas_message, int num_of_messages)
+{
+    stream << num_of_messages;
+    for (int i = 0; i < num_of_messages; ++i) {
+        stream << (*(mas_message+i)).message_num;
+        stream << (*(mas_message+i)).user_id_sender;
+        stream << (*(mas_message+i)).user_id_receiver;
+        stream << (*(mas_message+i)).str;
+    }
+}
+
+int Server::ChatUnSerialization(QDataStream &stream, message *mas_message)
+{
+    int num_of_messages;
+    stream >> num_of_messages;
+    for (int i = 0; i < num_of_messages; ++i) {
+        stream >> (*(mas_message+i)).message_num;
+        stream >> (*(mas_message+i)).user_id_sender;
+        stream >> (*(mas_message+i)).user_id_receiver;
+        stream >> (*(mas_message+i)).str;
+    }
+    return num_of_messages;
 }

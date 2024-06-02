@@ -20,6 +20,9 @@ Registration::Registration(QWidget *parent)
     ui->text_pass_confirmation->setVisible(false);
     ui->label_password_confirmation->setVisible(false);
     ui->label_registry_status->setVisible(false);
+
+    w = new Client();
+
 }
 
 Registration::~Registration()
@@ -81,6 +84,8 @@ void Registration::ProcessLoginRespond(QStringList &str_list)
         ui->label_status->setText("Не удалось войти");
     }
     //todo: переход к приложению
+    w->socket = this->socket;
+    w->show();
 }
 
 void Registration::ProcessRegistrationRespond(QStringList &str_list)

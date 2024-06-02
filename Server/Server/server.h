@@ -10,13 +10,12 @@
 
 // Заготовка к сообщениям
 struct message {
-    int user_id;
-    QChar str[300];
-};
-
-struct messages {
-    int num_of_messages;
-    message* message_mas;
+    int message_num;
+    int user_id_sender;
+    int user_id_receiver;
+    //int size_of_message;
+    //QChar text[300];
+    QString str;
 };
 
 class Server : public QTcpServer
@@ -38,11 +37,14 @@ private:
 
 // Передача данных клиенту (строки)
     void SentToClient(QString str);
-
 // Обработчик регистрации. Вызвать при коде 2, передать массив строк - параметров
     void ProcessRegistry(QStringList& str_list);
 // Обработчик регистрации. Вызвать при коде 2, передать массив строк - параметров
     void ProcessLogin (QStringList& str_list);
+// Запихиваем кол-во сообщений в чате, после чего все сообщения
+    void ChatSerialization(QDataStream& stream, message* mas_message, int num_of_messages);
+// Достаём данные из бинарного потока
+    int ChatUnSerialization(QDataStream& stream, message* mas_message);
 
 public slots:
 // Обрабтчик входящих подключений
