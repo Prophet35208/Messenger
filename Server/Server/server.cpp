@@ -66,31 +66,42 @@ void Server::slotReadyRead()
     {
         qDebug() << "Read stream ok";
         //Теперь выведем данные из потока в консоль
-        QString str;
-        in >> str;
 
-        //Тест
+        // Строку получили. Теперь её нужно обработать. Для этого смотрим на первое число - флаг.
+        QStringList str_list;
+        QString str;
+        //and password = (:password)
+        in >> str;
+        str_list.append(str);
+
+        //Тест,
         if(str == "4"){
             // Получаем структуру
             message mas_mes[2];
             int num_of_messages;
 
-           num_of_messages = ChatUnSerialization(in,mas_mes);
+            num_of_messages = ChatUnSerialization(in,mas_mes);
+
+            // Попробуем запихнуть в БД. Нужно передать номер и массив сообщений (структуру)
+
         }
 
-        // Строку получили. Теперь её нужно обработать. Для этого смотрим на первое число - флаг.
-        QStringList str_list;
-        //and password = (:password)
-        str_list = str.split("$");
+
+
         if (str_list[0]=="1"){
+            in >> str;
+            str_list.append(str);
+            in >> str;
+            str_list.append(str);
             ProcessLogin (str_list);
         }
         if (str_list[0]=="2"){
+            in >> str;
+            str_list.append(str);
+            in >> str;
+            str_list.append(str);
             ProcessRegistry (str_list);
         }
-
-
-
     }
     else
     {

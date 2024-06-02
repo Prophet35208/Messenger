@@ -39,11 +39,11 @@ void Registration::slotReadyRead()
     {
 
         qDebug() << "Read stream ok"; // Можно потом убрать
-        QString str;
-        in >> str;
         // Строку получили. Теперь её нужно обработать. Смотрим на первый аргумент.
         QStringList str_list;
-        str_list = str.split(" ");
+        QString str;
+        in >> str;
+        str_list.append(str);
         // Здесь смотрим код сообщения и вызываем соответствующую функцию обработчик.
         // Регистрация прошла
         if (str_list[0]=="1" || str_list[0]=="-1")
@@ -151,9 +151,13 @@ void Registration::on_pushButton_signin_clicked()
     {
         if (ui->text_pass->toPlainText() == ui->text_pass_confirmation->toPlainText())
         {
-        str = "2$" + this->ui->text_login->toPlainText() +"$"+ this->ui->text_pass->toPlainText() ;
-        out << str;
-        socket->write(data);
+            str = "2";
+            out << str;
+            str = this->ui->text_login->toPlainText();
+            out << str;
+            str = this->ui->text_pass->toPlainText();
+            out << str;
+            socket->write(data);
         }
         else
         {
@@ -163,7 +167,11 @@ void Registration::on_pushButton_signin_clicked()
     }
     else
     {
-        str = "1$" + this->ui->text_login->toPlainText() +"$"+ this->ui->text_pass->toPlainText() ;
+        str = "1";
+        out << str;
+        str = this->ui->text_login->toPlainText();
+        out << str;
+        str = this->ui->text_pass->toPlainText();
         out << str;
         socket->write(data);
     }

@@ -59,7 +59,7 @@ void Client::QStringToQChar_(QString &str, QChar *mas_char, int size)
 
 void Client::on_pushButton_clicked()
 {
-    //Тест
+    //Тест и не более. Эксперименты с передачей
     message mas_mes[2];
     int num_of_messages;
 
