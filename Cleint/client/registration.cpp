@@ -10,7 +10,7 @@ Registration::Registration(QWidget *parent)
     socket = new QTcpSocket(this);
 // Принимаем сигнал сокета о том, что можно читать с него
     connect(socket, SIGNAL(readyRead()), this, SLOT(slotReadyRead()));
-// Удалем сокет, который задисконектился. Плюсом добавим ещё один обработчик
+// Удалем сокет, который задисконектился.
     connect (socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
 //Дебаг
     connect (socket, SIGNAL(connected()), this, SLOT(slotConnectionEstablished()));
@@ -79,13 +79,14 @@ void Registration::ProcessLoginRespond(QStringList &str_list)
 {
     if (str_list[0]=="1"){
         ui->label_status->setText("Удалось войти");
+        w->connection_address = connection_address;
+        w->login = ui->text_login->toPlainText();
+        w->ReconnectToServer();
+        w->show();
     }
     if (str_list[0]=="-1"){
         ui->label_status->setText("Не удалось войти");
     }
-    //todo: переход к приложению
-    w->socket = this->socket;
-    w->show();
 }
 
 void Registration::ProcessRegistrationRespond(QStringList &str_list)
@@ -197,9 +198,10 @@ void Registration::on_pushButton_register_clicked()
 // Кнопка соединения
 void Registration::on_pushButton_connect_clicked()
 {
-    socket->connectToHost("127.0.0.1",2323);
+    socket->connectToHost(ui->text_ip->toPlainText(),2323);
     if(socket->waitForConnected(3000)){
         qDebug() << "All is ok";
+        connection_address = ui->text_ip->toPlainText();
         ui->pushButton_register->setEnabled(true);
         ui->pushButton_signin->setEnabled(true);
     }

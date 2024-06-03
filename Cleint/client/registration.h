@@ -30,6 +30,7 @@ private:
     Ui::Registration *ui;
     QTcpSocket* socket;
     QByteArray data;
+    QString connection_address;
     // Пока что форма клиента будет открываться из окна регистрации.
     Client* w;
 

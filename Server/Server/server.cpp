@@ -74,19 +74,11 @@ void Server::slotReadyRead()
         in >> str;
         str_list.append(str);
 
-        //Тест,
-        if(str == "4"){
-            // Получаем структуру
-            message mas_mes[2];
-            int num_of_messages;
-
-            num_of_messages = ChatUnSerialization(in,mas_mes);
-
-            // Попробуем запихнуть в БД. Нужно передать номер и массив сообщений (структуру)
-
+        if (str_list[0]=="4"){
+            in >> str;
+            str_list.append(str);
+            ProcessGetContact (str_list);
         }
-
-
 
         if (str_list[0]=="1"){
             in >> str;
@@ -95,6 +87,7 @@ void Server::slotReadyRead()
             str_list.append(str);
             ProcessLogin (str_list);
         }
+
         if (str_list[0]=="2"){
             in >> str;
             str_list.append(str);
@@ -102,19 +95,22 @@ void Server::slotReadyRead()
             str_list.append(str);
             ProcessRegistry (str_list);
         }
+
     }
     else
     {
         qDebug() << "Problem with read stream";
     }
 }
-
-void Server::SentToClient(QString str)
+// Передаём совокупность строк клиенту
+void Server::SentToClient(QStringList& str_list, int num_of_strings)
 {
     data.clear();
     // Инициализируем поток на вывод. С его помощью запишем str в data
     QDataStream out(&data, QIODevice::WriteOnly);
-    out << str;
+    for (int i = 0; i < num_of_strings; ++i) {
+        out << str_list[i];
+    }
     socket->write(data);
 }
 // Обрабатываем регистрацию. Смотрим есть ли такой человек, если нет - то одобряем.
@@ -130,7 +126,9 @@ void Server::ProcessRegistry(QStringList &str_list)
         if (query.next())
         {
             // Пользователь существует, значит аккаунт создать нельзя. Передаём код 2.
-            SentToClient("2");
+            str_list.clear();
+            str_list.append("2");
+            SentToClient(str_list,1);
 
         }
         else
@@ -144,7 +142,9 @@ void Server::ProcessRegistry(QStringList &str_list)
 
             if(query.exec())
             {
-                 SentToClient("3");
+                str_list.clear();
+                str_list.append("3");
+                SentToClient(str_list,1);
             }
             else
             {
@@ -173,15 +173,101 @@ void Server::ProcessLogin(QStringList &str_list)
         if (query.next())
         {
             // Пользователь существует и пароль подходит. Теперь нужно передать, что он подключился
-            // todo: В будущем нужно сделать передачу некоторогот значения, которое бы сгенерировалось
+            // В будущем можно сделать передачу некоторого значения, которое бы сгенерировалось
             // сервером и свидетельствовало о том, что пользователь авторизован. Пока что возвратим код 1
-            SentToClient("1");
+            str_list.clear();
+            str_list.append("1");
+            SentToClient(str_list,1);
 
         }
         else
         {
             // Такого пользователя нет или пароль не верный. Возвращаем код ошибки
-            SentToClient("-1");
+            str_list.clear();
+            str_list.append("-1");
+            SentToClient(str_list,1);
+        }
+    }
+    else
+    {
+        qDebug() << "Ошибка при выполнении query-запроса";
+    }
+}
+// Обрабатываем получение контакта.
+void Server::ProcessGetContact(QStringList &str_list)
+{
+    // Нужно получить логин, чекнуть бд. Если нет, то говорим, что нет такого. Если да, то смотрим,
+    QString id_chat;
+    // Первый это отправитель, второй - получатель (тот, кого передали в login)
+    QString id_first_user;
+    QString id_second_user;
+
+    QSqlQuery query;
+    query.prepare("SELECT login FROM user WHERE login = :login and password = :password");
+    query.bindValue(":login", str_list[1]);
+    if (query.exec())
+    {
+
+        if (query.next())
+        {
+            // Пользователь существует. Теперь нужно создать соответствующий чат
+            // Создаём пустой чат
+            query.prepare("INSERT INTO chat (id_last_message) VALUES (-1, 2)");
+            query.exec();
+
+            id_chat =  query.lastInsertId().toString();
+
+            // Пользователь отправитель
+            query.prepare("Select pk_user IN user Where login = :login");
+            query.bindValue(":login", str_list[1]);
+            query.exec();
+            id_first_user = query.value(0).toString();
+
+            // Пользователь получатель
+            query.prepare("Select pk_user IN user Where login = :login");
+            query.bindValue(":login", str_list[2]);
+             query.exec();
+            id_second_user = query.value(0).toString();
+
+             if (id_first_user != "" && id_second_user != ""){
+                // В таблице user_in_chat привязываем пользователей к нему
+                query.prepare("INSERT INTO user_in_chat (pk_user, pk_chat) VALUES (:id_first_user, :id_chat), (:id_second_user, :id_chat)");
+                query.bindValue(":id_second_user", id_second_user);
+                query.bindValue(":id_first_user", id_first_user);
+                query.bindValue(":id_chat", id_chat);
+                query.exec();
+
+                // Отправляем пользователю сообщение о том, что данные добавлены в БД (код 5) и клиент может запустить чат у себя.
+                // Так же отправим чат id, чтобы клиент понимал что это за чат и логин того, для кого чат создавался.
+                str_list.clear();
+                str_list.append("5");
+                str_list.append(id_chat);
+                str_list.append(id_second_user);
+                SentToClient(str_list,3);
+             }
+             else
+             {
+                 if(id_first_user == ""){
+                     // Возвращаем код ошибки. Не найден пользователь
+                     str_list.clear();
+                     str_list.append("-2");
+                     SentToClient(str_list,1);
+                 }
+                 else{
+                     // Возвращаем код ошибки. Другая ошибка
+                     str_list.clear();
+                     str_list.append("-1");
+                     SentToClient(str_list,1);
+                 }
+             }
+
+        }
+        else
+        {
+            //  Маловероятная ошибка. Возвращаем код ошибки
+            str_list.clear();
+            str_list.append("-1");
+            SentToClient(str_list,1);
         }
     }
     else

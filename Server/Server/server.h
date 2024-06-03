@@ -34,13 +34,16 @@ private:
     QByteArray data;
 // Переменная для базы данных
     QSqlDatabase m_db;
-
+// Лист для передачи параметров
+    QStringList str_list;
 // Передача данных клиенту (строки)
-    void SentToClient(QString str);
+    void SentToClient(QStringList& str_list, int num_of_strings);
 // Обработчик регистрации. Вызвать при коде 2, передать массив строк - параметров
     void ProcessRegistry(QStringList& str_list);
 // Обработчик регистрации. Вызвать при коде 2, передать массив строк - параметров
     void ProcessLogin (QStringList& str_list);
+// Обработчик получения контакта. Вызывать при коде 4.
+    void ProcessGetContact (QStringList& str_list);
 // Запихиваем кол-во сообщений в чате, после чего все сообщения
     void ChatSerialization(QDataStream& stream, message* mas_message, int num_of_messages);
 // Достаём данные из бинарного потока
