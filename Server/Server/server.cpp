@@ -166,6 +166,7 @@ void Server::ProcessRegistry(QStringList &str_list)
 void Server::ProcessLogin(QStringList &str_list)
 {
     QSqlQuery query;
+    QString login  = str_list[1];
     query.prepare("SELECT login FROM user WHERE login = :login and password = :password");
     query.bindValue(":login", str_list[1]);
     query.bindValue(":password", str_list[2]);
@@ -179,7 +180,10 @@ void Server::ProcessLogin(QStringList &str_list)
             // сервером и свидетельствовало о том, что пользователь авторизован. Пока что возвратим код 1
             str_list.clear();
             str_list.append("1");
-            SentToClient(str_list,1);
+            int num_of_params;
+            // Передаём клиенту данные о чатах
+            num_of_params = InitializeParamsForClientStartUp(str_list,login);
+            SentToClient(str_list,num_of_params+1);
 
         }
         else
@@ -296,7 +300,6 @@ void Server::ChatSerialization(QDataStream &stream, message *mas_message, int nu
     for (int i = 0; i < num_of_messages; ++i) {
         stream << (*(mas_message+i)).message_num;
         stream << (*(mas_message+i)).user_id_sender;
-        stream << (*(mas_message+i)).user_id_receiver;
         stream << (*(mas_message+i)).str;
     }
 }
@@ -308,8 +311,140 @@ int Server::ChatUnSerialization(QDataStream &stream, message *mas_message)
     for (int i = 0; i < num_of_messages; ++i) {
         stream >> (*(mas_message+i)).message_num;
         stream >> (*(mas_message+i)).user_id_sender;
-        stream >> (*(mas_message+i)).user_id_receiver;
         stream >> (*(mas_message+i)).str;
     }
     return num_of_messages;
+}
+// Кладёт в сокет параметры: 6, кол-во контактов, (логин контакта1, id чата с ним, сам чат (ф-ией ChatSerialization) n раз
+int Server::InitializeParamsForClientStartUp(QStringList &str_list, QString str_user_login)
+{
+    // Здесь мы создаём список строк, передающий переменной число параметров.
+    // Нужно передать:
+    // код операции (код 6), кол-во контактов, (логин контакта1, id чата с ним, сам чат (ф-ией ChatSerialization), ..., логин контактаX, id чата сним, сам чат)
+    // Можем даже не применять ф-ию ChatSerialization, чтобы не делать лишние операции. Для каждого сообщения важен отправитель и текст
+    QSqlQuery query, query2;
+    QString id_user;
+    int num_of_params;
+    // Данные 2 списка связаны. Псоле выборки под одними и теми же индексами будут находится id чата и id соответствующего контакта
+    // Так например если юзер имел чат с пользователем с id = 1 в чате с id = 2, то попав в слот 1 списков будет следующее:
+    // list_of_chats_id[1] = 2; list_of_logins_id[1] = 1
+    // Так же и со списком list_of_logins
+    QStringList list_of_chats_id;
+    QStringList list_of_logins_id;
+    QStringList list_of_logins;
+    int buf;
+    // Первый параметр
+    str_list.clear();
+    str_list.append("6");
+
+    // Смотрим id пользователя
+    query.prepare("SELECT pk_user FROM user WHERE login = :login");
+    query.bindValue(":login", str_user_login);
+    query.exec();
+    if (query.next())
+       id_user = query.value(0).toString();
+
+    // Определяем его чаты
+    query.prepare("Select pk_chat From chat Where num_of_users = 2 AND pk_chat IN (Select pk_chat From user_in_chat Where pk_user = :user_id)");
+    query.bindValue(":user_id", id_user);
+    query.exec();
+    while (query.next()){
+        list_of_chats_id.append(query.value(0).toString());
+    }
+
+    // Имеем список всех 1 на 1 чатов. Их кол-во будет равно кол-ву контактов. Можем сразу подготовить параметр
+    buf = list_of_chats_id.size();
+    QString s = QString::number(buf);
+    str_list.append(s);
+
+
+    // Смотрим число контактов и создаём их список, нам важны их id для следующих выборок и login для отправки клиенту
+    query.prepare("Select pk_user  From user_in_chat Where pk_chat = :id_chat and pk_user != :id_current_user");
+    query.bindValue(":id_current_user", id_user);
+
+    query2.prepare("Select login From user Where pk_user = :user_id");
+
+    for (int i = 0; i < buf; ++i) {
+        query.bindValue(":id_chat", list_of_chats_id[i]);
+        query.exec();
+        if (query.next())
+            list_of_logins_id.append(query.value(0).toString());
+
+        query2.bindValue(":user_id", list_of_logins_id[list_of_logins_id.size()-1]);
+        query2.exec();
+        if (query2.next())
+            list_of_logins.append(query2.value(0).toString());
+    }
+
+    // После прошлой операции у нас массив id чатов, логины и id с кем они связаны.
+    // Остаётся для каждого чата найти все его сообщения
+    // Следует понимать, что на сервере сообщения реализованы в виде односвязного списка.
+    // На клиенте реализация в виде списка, через сокет мы передаём совокупность сообщений.
+    // Заполняем list_of_chats_id.size() троек параметров (логин контакта1, id чата с ним, сам чат)
+    QString last_message_id;
+    QString num_of_messages;
+    QString buf_str;
+    QString buf_mes_text;
+    for (int i = 0; i < list_of_chats_id.size(); ++i) {
+
+        str_list.append(list_of_logins[i]);
+        str_list.append(list_of_chats_id[i]);
+
+
+        // Получим номер последнего сообщения
+        query.prepare("Select id_last_message From chat Where pk_chat = :id_chat");
+        query.bindValue(":id_chat", list_of_chats_id[i]);
+        query.exec();
+        if (query.next()){
+            buf_str =  query.value(0).toString();
+            last_message_id = buf_str;
+        }
+        if (buf_str == "-1")
+        {
+            // Сообщений нет
+            str_list.append("0");
+
+        }
+        else
+        {
+            // Сообщения есть
+
+            // Получим общее число сообщений
+            query.prepare("Select id_last_message From chat Where pk_chat = :id_chat");
+            query.bindValue(":id_chat", list_of_chats_id[i]);
+            query.exec();
+            if (query.next())
+                buf =  query.value(0).toInt();
+
+            QString buf_next_message;
+            // По очереди вытаскиваем сообщения и заносим их данные в сокет
+            for (int i = 0; i < buf; ++i) {
+                query.prepare("Select pk_previous, text, pk_user_sender, pk_previous  From message Where pk_message = :last_message_id");
+                query.bindValue(":last_message_id", last_message_id);
+                query.exec();
+                if (query.next()){
+                    buf_str  =  query.value(2).toString();
+                    buf_mes_text = query.value(1).toString();
+                    buf_next_message = query.value(3).toString();
+
+                }
+
+                // Найдём логин отправителя и сразу заносим 2 оставшихся параметра сообщения
+                query.prepare("Select login From user Where pk_user = :user_id");
+                query.bindValue(":user_id", buf_str);
+                query.exec();
+                if (query.next()){
+                    buf_str  =  query.value(0).toString();
+                    str_list.append(buf_str);
+                    str_list.append(buf_mes_text);
+                }
+                // Идём к следующему
+                last_message_id = buf_next_message;
+
+            }
+        }
+    }
+    num_of_params = 2 + list_of_chats_id.size() * 2;
+    return num_of_params;
+
 }

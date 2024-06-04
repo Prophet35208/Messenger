@@ -10,11 +10,8 @@
 
 // Заготовка к сообщениям
 struct message {
-    int message_num;
+    int message_num; // id
     int user_id_sender;
-    int user_id_receiver;
-    //int size_of_message;
-    //QChar text[300];
     QString str;
 };
 
@@ -48,7 +45,8 @@ private:
     void ChatSerialization(QDataStream& stream, message* mas_message, int num_of_messages);
 // Достаём данные из бинарного потока
     int ChatUnSerialization(QDataStream& stream, message* mas_message);
-
+// Инициализируем список парамтров, которые нужно передать клиенту для инициализации его контактов и чатов
+    int InitializeParamsForClientStartUp (QStringList &str_list, QString str_user_login);
 public slots:
 // Обрабтчик входящих подключений
     void incomingConnection(qintptr socket_descriptor);
