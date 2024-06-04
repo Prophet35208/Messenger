@@ -13,12 +13,10 @@ QT_END_NAMESPACE
 
 
 struct message {
-    int message_num;
-    int user_id_sender;
-    int user_id_receiver;
-    //int size_of_message;
-    //QChar text[300];
-    QString str;
+    int message_id; // Пока что не используется (пригодится для удаления и изменения сообщений)
+    QString user_login_sender; // Пока что не используется (пригодится для групповых чатов)
+    QString user_login_receiver;
+    QString str_text;
 };
 
 // Для каждого контакта отведён минимум 1 чат, где текущий пользователь общается с контактом.
@@ -45,7 +43,6 @@ private:
     // Определяем сокет и массив данных для него
     QByteArray data;
 
-    QList <Contact*> contact_list;
     // Запихиваем кол-во сообщений в чате, после чего все сообщения
     void ChatSerialization(QDataStream& stream, message* mas_message, int num_of_messages);
     // Достаём данные из бинарного потока
@@ -56,6 +53,7 @@ private:
 public:
     QString connection_address;
     QString login;
+    QList <Contact> contact_list;
 
     void ReconnectToServer();
 public slots:

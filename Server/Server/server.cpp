@@ -183,7 +183,7 @@ void Server::ProcessLogin(QStringList &str_list)
             int num_of_params;
             // Передаём клиенту данные о чатах
             num_of_params = InitializeParamsForClientStartUp(str_list,login);
-            SentToClient(str_list,num_of_params+1);
+            SentToClient(str_list,num_of_params);
 
         }
         else
@@ -315,13 +315,13 @@ int Server::ChatUnSerialization(QDataStream &stream, message *mas_message)
     }
     return num_of_messages;
 }
-// Кладёт в сокет параметры: 6, кол-во контактов, (логин контакта1, id чата с ним, сам чат (ф-ией ChatSerialization) n раз
+// Кладёт в сокет параметры: 1, кол-во контактов, (логин контакта1, id чата с ним, сам чат (ф-ией ChatSerialization) n раз
 int Server::InitializeParamsForClientStartUp(QStringList &str_list, QString str_user_login)
 {
     // Здесь мы создаём список строк, передающий переменной число параметров.
     // Нужно передать:
-    // код операции (код 6), кол-во контактов, (логин контакта1, id чата с ним, сам чат (ф-ией ChatSerialization), ..., логин контактаX, id чата сним, сам чат)
-    // Можем даже не применять ф-ию ChatSerialization, чтобы не делать лишние операции. Для каждого сообщения важен отправитель и текст
+    // код операции (код 1), кол-во контактов, (логин контакта1, id чата с ним, сам чат (ф-ией ChatSerialization), ..., логин контактаX, id чата сним, сам чат)
+    // Можем даже не применять ф-ию ChatSerialization, чтобы не делать лишние операции. Для каждого сообщения важен отправитель,текст и (в будущем можно добавить id)
     QSqlQuery query, query2;
     QString id_user;
     int num_of_params;
@@ -335,7 +335,7 @@ int Server::InitializeParamsForClientStartUp(QStringList &str_list, QString str_
     int buf;
     // Первый параметр
     str_list.clear();
-    str_list.append("6");
+    str_list.append("1");
 
     // Смотрим id пользователя
     query.prepare("SELECT pk_user FROM user WHERE login = :login");
@@ -413,8 +413,10 @@ int Server::InitializeParamsForClientStartUp(QStringList &str_list, QString str_
             query.prepare("Select id_last_message From chat Where pk_chat = :id_chat");
             query.bindValue(":id_chat", list_of_chats_id[i]);
             query.exec();
-            if (query.next())
+            if (query.next()){
                 buf =  query.value(0).toInt();
+                str_list.append(query.value(0).toString());
+            }
 
             QString buf_next_message;
             // По очереди вытаскиваем сообщения и заносим их данные в сокет
@@ -444,7 +446,7 @@ int Server::InitializeParamsForClientStartUp(QStringList &str_list, QString str_
             }
         }
     }
-    num_of_params = 2 + list_of_chats_id.size() * 2;
+    num_of_params = str_list.size();
     return num_of_params;
 
 }

@@ -1,5 +1,8 @@
 #include "qlistmodel.h"
 
+// Тестовая модель.
+
+
 qlistmodel::qlistmodel(QObject *parent) :
     QAbstractListModel (parent)
 {

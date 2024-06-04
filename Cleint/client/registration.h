@@ -44,6 +44,9 @@ private:
     void ProcessLoginRespond(QStringList& str_list);
     void ProcessRegistrationRespond(QStringList& str_list);
 
+    // Передача данных клиенту из окна регистрации
+    void TransferClientInfo(QStringList &str_list, Client* client);
+
     // Вход и выход в режим регистрации
     void RegistryOn();
     void RegistryOff();

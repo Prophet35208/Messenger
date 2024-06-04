@@ -44,6 +44,37 @@ void Registration::slotReadyRead()
         QString str;
         in >> str;
         str_list.append(str);
+        // Передача в лист переменного числа параметров
+        if (str_list[0] == "1"){
+            int num_of_contacts;
+            QList <int> list_num_of_messages;
+            int j=0;
+
+            in >> str;
+            num_of_contacts = str.toInt();
+            str_list.append(str);
+
+            for (int i = 0; i < num_of_contacts; ++i) {
+                in >> str;
+                str_list.append(str);
+
+                in >> str;
+                str_list.append(str);
+
+                in >> str;
+                str_list.append(str);
+                list_num_of_messages.append(str.toInt());
+
+                for (int k = 0; k < list_num_of_messages[j]; ++k) {
+                    in >> str;
+                    str_list.append(str);
+
+                    in >> str;
+                    str_list.append(str);
+                }
+                j++;
+            }
+        }
         // Здесь смотрим код сообщения и вызываем соответствующую функцию обработчик.
         // Регистрация прошла
         if (str_list[0]=="1" || str_list[0]=="-1")
@@ -82,6 +113,9 @@ void Registration::ProcessLoginRespond(QStringList &str_list)
         w->connection_address = connection_address;
         w->login = ui->text_login->toPlainText();
         w->ReconnectToServer();
+
+        TransferClientInfo(str_list,w);
+
         w->show();
     }
     if (str_list[0]=="-1"){
@@ -103,6 +137,40 @@ void Registration::ProcessRegistrationRespond(QStringList &str_list)
         //Теперь выходим из режима регистрации, очищаем text-боксы.
         RegistryOff();
     }
+
+}
+
+void Registration::TransferClientInfo(QStringList &str_list, Client *client)
+{
+    // Нужно проанализировать все параметры str_list
+    int num_of_contacts;
+    Contact buf;
+    message buf_mesage;
+    int buf_message_count;
+
+    int j=2;
+
+    num_of_contacts = str_list[1].toInt();
+    for (int i = 0; i < num_of_contacts; ++i)
+    {
+        buf.login = str_list[j];
+        j++;
+        buf.chat_id = str_list[j].toInt();
+        j++;
+
+        buf_message_count = str_list[j].toInt();
+        j++;
+        for (int k = 0; k < buf_message_count; ++k) {
+            buf_mesage.user_login_sender = str_list[j];
+            j++;
+            buf_mesage.str_text = str_list[j];
+            j++;
+            buf.message_list.append(buf_mesage);
+        }
+        client->contact_list.append(buf);
+        buf.message_list.clear();
+    }
+
 
 }
 

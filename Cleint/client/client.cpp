@@ -31,10 +31,9 @@ void Client::ChatSerialization(QDataStream &stream, message* mas_message, int nu
 {
     stream << num_of_messages;
     for (int i = 0; i < num_of_messages; ++i) {
-        stream << (*(mas_message+i)).message_num;
-        stream << (*(mas_message+i)).user_id_sender;
-        stream << (*(mas_message+i)).user_id_receiver;
-        stream << (*(mas_message+i)).str;
+        stream << (*(mas_message+i)).user_login_sender;
+        stream << (*(mas_message+i)).user_login_receiver;
+        stream << (*(mas_message+i)).str_text;
     }
 
 }
@@ -45,14 +44,13 @@ int Client::ChatUnSerialization(QDataStream &stream, message *mas_message)
     int num_of_messages;
     stream >> num_of_messages;
     for (int i = 0; i < num_of_messages; ++i) {
-        stream >> (*(mas_message+i)).message_num;
-        stream >> (*(mas_message+i)).user_id_sender;
-        stream >> (*(mas_message+i)).user_id_receiver;
-        stream >> (*(mas_message+i)).str;
+        stream >> (*(mas_message+i)).user_login_sender;
+        stream >> (*(mas_message+i)).user_login_receiver;
+        stream >> (*(mas_message+i)).str_text;
     }
     return num_of_messages;
 }
-
+// Пока не используется
 void Client::QStringToQChar_(QString &str, QChar *mas_char, int size)
 {
     int i;
@@ -106,6 +104,7 @@ void Client::slotReadyRead()
 
 void Client::on_pushButton_clicked()
 {
+    /*
     //Тест и не более. Эксперименты с передачей
     message mas_mes[2];
     int num_of_messages;
@@ -133,6 +132,7 @@ void Client::on_pushButton_clicked()
 
     ChatSerialization(out,mas_mes,2);
     socket->write(data);
+*/
 
 }
 
@@ -173,7 +173,7 @@ void Client::ProcessAddContactRespond(QStringList& str_list)
         Contact* cont = new Contact();
         cont->login = str_list[2];
         cont->chat_id = str_list[1].toInt();
-        contact_list.append(cont);
+        contact_list.append(*cont);
 
         // На этот момент новый контакт имеет базовые параметры но не имеет сообщений.
         // Теперь следует обработать исключения от сервера: пользователь не найден или неизвестная ошибка (просто -1).
