@@ -89,7 +89,13 @@ void Client::slotReadyRead()
         // Здесь смотрим код сообщения и вызываем соответствующую функцию обработчик.
         // Регистрация прошла
         if (str_list[0]=="5")
+        {
+            in >> str;
+            str_list.append(str);
+            in >> str;
+            str_list.append(str);
             ProcessAddContactRespond(str_list);
+        }
 
     }
     else
@@ -158,15 +164,15 @@ void Client::on_pushButton_get_contact_clicked()
 
 void Client::ProcessAddContactRespond(QStringList& str_list)
 {
-    // Сервер нам отправит либо -1 - ошибка, либо 3 параметра (успех) - 5, login того, кого добавить и id-чата.
+    // Сервер нам отправит либо -1 - ошибка, либо 3 параметра (успех) - 5, id-чата и login того, кого добавить
     if(str_list[0] == "5")
     {
         // Нужно добавить объект в list.
-        ui->listWidget_contact->addItem(str_list[1]);
+        ui->listWidget_contact->addItem(str_list[2]);
         // Инициализация контакта и чата
         Contact* cont = new Contact();
-        cont->login = str_list[1];
-        cont->chat_id = str_list[2].toInt();
+        cont->login = str_list[2];
+        cont->chat_id = str_list[1].toInt();
         contact_list.append(cont);
 
         // На этот момент новый контакт имеет базовые параметры но не имеет сообщений.

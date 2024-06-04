@@ -77,6 +77,8 @@ void Server::slotReadyRead()
         if (str_list[0]=="4"){
             in >> str;
             str_list.append(str);
+            in >> str;
+            str_list.append(str);
             ProcessGetContact (str_list);
         }
 
@@ -196,57 +198,69 @@ void Server::ProcessLogin(QStringList &str_list)
 // Обрабатываем получение контакта.
 void Server::ProcessGetContact(QStringList &str_list)
 {
-    // Нужно получить логин, чекнуть бд. Если нет, то говорим, что нет такого. Если да, то смотрим,
-    QString id_chat;
-    // Первый это отправитель, второй - получатель (тот, кого передали в login)
-    QString id_first_user;
-    QString id_second_user;
+    QString buf_login =str_list[2] ;
+    QString id_chat("");
+    // Первый это отправитель, второй - получатель (тот, кого передали для добавления в контакты)
+    QString id_first_user("");
+    QString id_second_user("");
 
     QSqlQuery query;
-    query.prepare("SELECT login FROM user WHERE login = :login and password = :password");
+    query.prepare("SELECT login FROM user WHERE login = :login");
     query.bindValue(":login", str_list[1]);
     if (query.exec())
     {
 
         if (query.next())
         {
-            // Пользователь существует. Теперь нужно создать соответствующий чат
-            // Создаём пустой чат
-            query.prepare("INSERT INTO chat (id_last_message) VALUES (-1, 2)");
-            query.exec();
-
-            id_chat =  query.lastInsertId().toString();
+            // Пользователь существует. Можем работать
 
             // Пользователь отправитель
-            query.prepare("Select pk_user IN user Where login = :login");
+            query.prepare("Select pk_user FROM user Where login = :login");
             query.bindValue(":login", str_list[1]);
             query.exec();
-            id_first_user = query.value(0).toString();
+            if (query.next())
+                id_first_user = query.value(0).toString();
 
             // Пользователь получатель
-            query.prepare("Select pk_user IN user Where login = :login");
+            query.prepare("Select pk_user FROM user Where login = :login");
             query.bindValue(":login", str_list[2]);
-             query.exec();
-            id_second_user = query.value(0).toString();
+            query.exec();
+            if (query.next())
+                id_second_user = query.value(0).toString();
 
-             if (id_first_user != "" && id_second_user != ""){
+            // Если оба пользователя в БД, тогда можем создавать и привязывать чат. Так же не допускаем добавления себя же
+             if (id_first_user != "" && id_second_user != "" && id_first_user != id_second_user){
+
+                // Создаём пустой чат
+                query.prepare("INSERT INTO chat (id_last_message,num_of_users) VALUES (-1, 2)");
+                if(query.exec()){}
+                    else {
+                        qDebug() << "Ошбика при запросе вставке чата";
+                    }
+                id_chat =  query.lastInsertId().toString();
+
                 // В таблице user_in_chat привязываем пользователей к нему
                 query.prepare("INSERT INTO user_in_chat (pk_user, pk_chat) VALUES (:id_first_user, :id_chat), (:id_second_user, :id_chat)");
                 query.bindValue(":id_second_user", id_second_user);
                 query.bindValue(":id_first_user", id_first_user);
                 query.bindValue(":id_chat", id_chat);
-                query.exec();
+                if(query.exec()){}
+                else {
+                    qDebug() << "Ошбика при запросе на связывание чата";
+                }
+
 
                 // Отправляем пользователю сообщение о том, что данные добавлены в БД (код 5) и клиент может запустить чат у себя.
                 // Так же отправим чат id, чтобы клиент понимал что это за чат и логин того, для кого чат создавался.
                 str_list.clear();
                 str_list.append("5");
                 str_list.append(id_chat);
-                str_list.append(id_second_user);
+                str_list.append(buf_login);
                 SentToClient(str_list,3);
              }
              else
              {
+                 // Можно дополнить дополнительным условиями для определения конкретики ошибки
                  if(id_first_user == ""){
                      // Возвращаем код ошибки. Не найден пользователь
                      str_list.clear();
