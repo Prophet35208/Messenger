@@ -17,17 +17,8 @@ Server::Server(const QString& path)
         qDebug() << "Database: connection ok";
     }
 
-
-
-
     // Начинаем прослушивать порт Tcp/Udp по всем сетевым интерфейсам.
-    if (this->listen(QHostAddress::Any,2323)){
-        qDebug() << "Server started";
-    }
-    else
-    {
-        qDebug() << "Server error";
-    }
+    this->listen(QHostAddress::Any,2323);
 
 }
 
@@ -70,7 +61,6 @@ void Server::slotReadyRead()
         // Строку получили. Теперь её нужно обработать. Для этого смотрим на первое число - флаг.
         QStringList str_list;
         QString str;
-        //and password = (:password)
         in >> str;
         str_list.append(str);
 

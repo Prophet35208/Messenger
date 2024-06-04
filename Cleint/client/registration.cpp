@@ -115,6 +115,7 @@ void Registration::ProcessLoginRespond(QStringList &str_list)
         w->ReconnectToServer();
 
         TransferClientInfo(str_list,w);
+        w->ApplyContactsInfo();
 
         w->show();
     }

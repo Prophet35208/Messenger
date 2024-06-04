@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QTcpSocket>
 #include <QString>
+#include <QListWidgetItem>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -13,7 +14,7 @@ QT_END_NAMESPACE
 
 
 struct message {
-    int message_id; // Пока что не используется (пригодится для удаления и изменения сообщений)
+    int message_id = -1; // Пока что не используется (пригодится для удаления и изменения сообщений)
     QString user_login_sender; // Пока что не используется (пригодится для групповых чатов)
     QString user_login_receiver;
     QString str_text;
@@ -58,9 +59,12 @@ public:
     void ReconnectToServer();
 public slots:
     void slotReadyRead();
+    // Применим полученныю информацию от сервера для отрисовки окна контактов.
+    void ApplyContactsInfo();
 private slots:
     void on_pushButton_clicked();
     void on_pushButton_get_contact_clicked();
     void ProcessAddContactRespond(QStringList& str_list);
+    void on_listWidget_contact_itemDoubleClicked(QListWidgetItem *item);
 };
 #endif // CLIENT_H

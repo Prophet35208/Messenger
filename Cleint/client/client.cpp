@@ -102,37 +102,22 @@ void Client::slotReadyRead()
     }
 }
 
+void Client::ApplyContactsInfo()
+{
+    int num_of_contacts = contact_list.size();
+
+    for (int i = 0; i < num_of_contacts; ++i) {
+        ui->listWidget_contact->addItem(contact_list[i].login);
+    }
+}
+
 void Client::on_pushButton_clicked()
 {
-    /*
-    //Тест и не более. Эксперименты с передачей
-    message mas_mes[2];
-    int num_of_messages;
+    // Отправялем сообщение
+    QString text;
+    text = ui->lineEdit->text();
 
-    mas_mes[0].message_num=1;
-    mas_mes[0].user_id_receiver = 1;
-    mas_mes[0].user_id_sender = 2;
-    //QString str1("Hello");
-    //QStringToQChar_(str1,mas_mes[0].text,str1.size());
-    mas_mes[0].str = QString("Hello");
-
-    mas_mes[1].message_num = 2;
-    mas_mes[1].user_id_receiver = 3;
-    mas_mes[1].user_id_sender = 4;
-    //QString str2("Hi");
-    //QStringToQChar_(str2,mas_mes[1].text,str2.size());
-    mas_mes[1].str = QString("Hi");
-
-    // Запихиваем в поток
-    data.clear();
-    // Инициализируем поток на вывод. С его помощью запишем str в data
-    QDataStream out(&data, QIODevice::WriteOnly);
-    out.setVersion(QDataStream::Version::Qt_6_7);
-    out << QString("4");
-
-    ChatSerialization(out,mas_mes,2);
-    socket->write(data);
-*/
+    ui->listWidget_chat->addItem(login +": "+text);
 
 }
 
@@ -183,5 +168,24 @@ void Client::ProcessAddContactRespond(QStringList& str_list)
         if(str_list[0]== "-2"){
         qDebug() << "Пользователь не найден";
     }
+}
+
+
+void Client::on_listWidget_contact_itemDoubleClicked(QListWidgetItem *item)
+{
+    ui->listWidget_chat->clear();
+    // Определяем логин контакта
+    QString log = item->text();
+    int num;
+    for (int i = 0; i < contact_list.size(); ++i) {
+        if (contact_list[i].login == log){
+            num = i;
+        }
+    }
+    // Выводим соответствующий чат
+    for (int i = 0; i < contact_list[num].message_list.size(); ++i) {
+        ui->listWidget_chat->addItem(contact_list[num].message_list[i].user_login_sender + ": " + contact_list[num].message_list[i].str_text);
+    }
+
 }
 
