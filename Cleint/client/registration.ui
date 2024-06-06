@@ -104,7 +104,7 @@
      <x>60</x>
      <y>70</y>
      <width>221</width>
-     <height>131</height>
+     <height>214</height>
     </rect>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -150,6 +150,9 @@
       <property name="enabled">
        <bool>true</bool>
       </property>
+      <property name="lineWrapMode">
+       <enum>QTextEdit::WidgetWidth</enum>
+      </property>
      </widget>
     </item>
    </layout>
@@ -160,7 +163,7 @@
      <x>60</x>
      <y>200</y>
      <width>221</width>
-     <height>61</height>
+     <height>105</height>
     </rect>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout_3">

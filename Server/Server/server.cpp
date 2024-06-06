@@ -64,13 +64,7 @@ void Server::slotReadyRead()
         in >> str;
         str_list.append(str);
 
-        if (str_list[0]=="4"){
-            in >> str;
-            str_list.append(str);
-            in >> str;
-            str_list.append(str);
-            ProcessGetContact (str_list);
-        }
+
 
         if (str_list[0]=="1"){
             in >> str;
@@ -88,12 +82,131 @@ void Server::slotReadyRead()
             ProcessRegistry (str_list);
         }
 
+        if (str_list[0]=="4"){
+            in >> str;
+            str_list.append(str);
+            in >> str;
+            str_list.append(str);
+            ProcessGetContact (str_list);
+        }
+
+        if (str_list[0]=="5")
+        {
+            in >> str;
+            str_list.append(str);
+            ProcessSubscriptionForUpdates((QTcpSocket*)sender(),str_list[1]);
+        }
+
+
+        if (str_list[0]=="6")
+        {
+            in >> str;
+            str_list.append(str);
+            in >> str;
+            str_list.append(str);
+            in >> str;
+            str_list.append(str);
+            ProcessMessageFromClient(str_list);
+        }
+
     }
     else
     {
         qDebug() << "Problem with read stream";
     }
 }
+
+// Получаем сокет и логин, на их основе организуем объект структуры и добавляем в список
+void Server::ProcessSubscriptionForUpdates(QTcpSocket* socket, QString str)
+{
+    SubscriptedSocket* sub_socket = new SubscriptedSocket();
+    sub_socket->socket = socket;
+    sub_socket->login = str;
+    list_subscripted_sockets.append(sub_socket);
+}
+
+
+void Server::ProcessMessageFromClient(QStringList &str_list)
+{
+    // Получаем 4 параметра: код, логин отправителя, id чата, текст сообщения.
+    // Нужно занести сообщение в базу и отправить всем подписанным юзерам (которые имеют чаты для обновления) уведомление
+    QString id_last_message;
+    QString id_user_sender;
+    QString id_inserted_message;
+    // Добавление в БД
+    // Получаем последнее сообщение чата
+     QSqlQuery query;
+    query.prepare("Select id_last_message From chat Where pk_chat = :id_chat");
+    query.bindValue(":id_chat", str_list[2]);
+    query.exec();
+    if (query.next())
+        id_last_message = query.value(0).toString();
+
+    // Получаем id юзера
+    query.prepare("Select pk_user From user Where login = :login");
+    query.bindValue(":login", str_list[1]);
+    query.exec();
+    if (query.next())
+        id_user_sender = query.value(0).toString();
+
+    // Теперь добавим новое, нужно чтобы оно указывало на предыдущее, а чат указывал на новое как на последнее
+    query.prepare("Insert Into message (pk_previous, text, pk_user_sender, pk_chat) VALUES (:id_last_message, :text, :sender,:id_chat)");
+    query.bindValue(":id_last_message", id_last_message);
+    query.bindValue(":text", str_list[3]);
+    query.bindValue(":sender", id_user_sender);
+    query.bindValue(":id_chat", str_list[2]);
+    // (Сюда можно добавить обработчик в случае оишбки)
+    query.exec();
+    id_inserted_message = query.lastInsertId().toString();
+
+    query.prepare("Update chat Set id_last_message = :message_id Where pk_chat = :id_chat");
+    query.bindValue(":message_id", id_inserted_message);
+    query.bindValue(":id_chat", str_list[2]);
+    query.exec();
+
+}
+
+void Server::NotifyAboutNewMessage(int message_id)
+{
+    // Имеем id сообщения, нужно получить из бд чат, в котором оно находится. После этого список пользователей чата.
+    // После этого для всех тех кто подписался, отсылваем данные о новом сообщении: id сообщения, id чата, логин отправителя.
+
+    // Получение id чата
+    QString id_chat;
+    QSqlQuery query;
+    query.prepare("Select pk_chat From message Where pk_message = :id_message");
+    query.bindValue(":id_message", message_id);
+    query.exec();
+    if (query.next())
+        id_chat = query.value(0).toString();
+
+    // Получение списка id юзеров
+    QStringList user_id_list;
+    query.prepare("Select pk_user From user_in_chat Where pk_chat = :id_chat");
+    query.bindValue(":id_chat", id_chat);
+    query.exec();
+    while (query.next()){
+        user_id_list.append(query.value(0).toString());
+    }
+
+    int num_of_users = user_id_list.size();
+    QStringList user_login_list;
+
+    // Получение списка логинов пользователей
+    for (int i = 0; i < num_of_users; ++i) {
+
+        query.prepare("Select login From user Where pk_user = :id_user");
+        query.bindValue(":id_user", user_id_list[i]);
+        query.exec();
+        if (query.next())
+            user_login_list.append(query.value(0).toString());
+
+    }
+    // todo: тут нужна функция отправки оповещений
+
+}
+
+
 // Передаём совокупность строк клиенту
 void Server::SentToClient(QStringList& str_list, int num_of_strings)
 {

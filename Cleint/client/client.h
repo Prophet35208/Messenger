@@ -43,18 +43,21 @@ private:
     Ui::Client *ui;
     // Определяем сокет и массив данных для него
     QByteArray data;
-
+    int current_chat_id;
     // Запихиваем кол-во сообщений в чате, после чего все сообщения
     void ChatSerialization(QDataStream& stream, message* mas_message, int num_of_messages);
     // Достаём данные из бинарного потока
     int ChatUnSerialization(QDataStream& stream, message* mas_message);
 
     void QStringToQChar_ (QString& str,QChar *mas_char, int size);
-        QTcpSocket *socket;
+    QTcpSocket *socket;
+    void SentToServerStrings(QStringList& str_list, int num_of_strings);
 public:
     QString connection_address;
     QString login;
     QList <Contact> contact_list;
+    // Подписка на оповещения. Главныйм образом позволяет связать сокет и логин.
+    void SubscribeForUpdates();
 
     void ReconnectToServer();
 public slots:

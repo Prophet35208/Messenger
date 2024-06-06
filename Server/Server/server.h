@@ -8,6 +8,11 @@
 #include <QSqlQuery>
 #include <QtSql>
 
+struct SubscriptedSocket{
+    QString login;
+    QTcpSocket* socket;
+};
+
 // Заготовка к сообщениям
 struct message {
     int message_num; // id
@@ -25,6 +30,8 @@ public:
     QTcpSocket *socket;
 
 private:
+// Список для сокетов, готовых получать уведомления
+    QList <SubscriptedSocket*> list_subscripted_sockets;
 // Вектор хранимых сокетов
     QVector <QTcpSocket*> sockets;
 // Данные передаём в типе QByteArray,
@@ -52,6 +59,11 @@ public slots:
     void incomingConnection(qintptr socket_descriptor);
 // Обработчик сообщений
     void slotReadyRead();
+// Добавляет клиентов в список, в котором они считаются онлайн и получают обновления.
+// Главным образом позволяет связать сокет и логин.
+    void ProcessSubscriptionForUpdates(QTcpSocket* socket, QString str);
+// Получаем сообщение от клиента
+    void ProcessMessageFromClient(QStringList& str_list);
 };
 
 #endif // SERVER_H

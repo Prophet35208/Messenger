@@ -21,8 +21,6 @@ Registration::Registration(QWidget *parent)
     ui->label_password_confirmation->setVisible(false);
     ui->label_registry_status->setVisible(false);
 
-    w = new Client();
-
 }
 
 Registration::~Registration()
@@ -109,6 +107,8 @@ void Registration::SendToServer(QString str)
 void Registration::ProcessLoginRespond(QStringList &str_list)
 {
     if (str_list[0]=="1"){
+        w = new Client();
+
         ui->label_status->setText("Удалось войти");
         w->connection_address = connection_address;
         w->login = ui->text_login->toPlainText();
@@ -116,6 +116,7 @@ void Registration::ProcessLoginRespond(QStringList &str_list)
 
         TransferClientInfo(str_list,w);
         w->ApplyContactsInfo();
+        w->SubscribeForUpdates();
 
         w->show();
     }

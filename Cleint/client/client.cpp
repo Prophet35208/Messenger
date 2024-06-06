@@ -50,14 +50,24 @@ int Client::ChatUnSerialization(QDataStream &stream, message *mas_message)
     }
     return num_of_messages;
 }
-// Пока не используется
-void Client::QStringToQChar_(QString &str, QChar *mas_char, int size)
+
+void Client::SentToServerStrings(QStringList &str_list, int num_of_strings)
 {
-    int i;
-    for ( i = 0; i < size-1; ++i) {
-        *(mas_char+i) = str[i];
+    data.clear();
+    // Инициализируем поток на вывод. С его помощью запишем str в data
+    QDataStream out(&data, QIODevice::WriteOnly);
+    for (int i = 0; i < num_of_strings; ++i) {
+        out << str_list[i];
     }
-    *(mas_char+i) = '\0';
+    socket->write(data);
+}
+// Отправит запрос на сервер на подключение уведомлений. Код 5. Передаём логин
+void Client::SubscribeForUpdates()
+{
+    QStringList str_list;
+    str_list.append("5");
+    str_list.append(this->login);
+    SentToServerStrings(str_list,2);
 }
 
 void Client::ReconnectToServer()
@@ -110,14 +120,24 @@ void Client::ApplyContactsInfo()
         ui->listWidget_contact->addItem(contact_list[i].login);
     }
 }
-
+// Отправляем сообщение. Эта функция будет отправляеть сообщение на сервер
 void Client::on_pushButton_clicked()
 {
-    // Отправялем сообщение
+    /* Надо бы сначало ответ от сервера получить
+    // Отправялем сообщение локально
     QString text;
     text = ui->lineEdit->text();
 
     ui->listWidget_chat->addItem(login +": "+text);
+*/
+
+    // Отправляем сообщение на сервер. Код 6, параметры - логин отправителя, id чата, текст сообщения.
+
+    QStringList str_list;
+    str_list.append("6");
+    str_list.append(login);
+    str_list.append(QString::number(current_chat_id));
+    SentToServerStrings(str_list,3);
 
 }
 
@@ -186,6 +206,8 @@ void Client::on_listWidget_contact_itemDoubleClicked(QListWidgetItem *item)
     for (int i = 0; i < contact_list[num].message_list.size(); ++i) {
         ui->listWidget_chat->addItem(contact_list[num].message_list[i].user_login_sender + ": " + contact_list[num].message_list[i].str_text);
     }
+    // Заполняем данные о текущем чате
+    current_chat_id = contact_list[num].chat_id;
 
 }
 
