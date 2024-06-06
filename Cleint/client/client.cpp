@@ -137,7 +137,8 @@ void Client::on_pushButton_clicked()
     str_list.append("6");
     str_list.append(login);
     str_list.append(QString::number(current_chat_id));
-    SentToServerStrings(str_list,3);
+    str_list.append(ui->textEdit_message_box->toPlainText());
+    SentToServerStrings(str_list,4);
 
 }
 

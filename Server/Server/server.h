@@ -64,6 +64,8 @@ public slots:
     void ProcessSubscriptionForUpdates(QTcpSocket* socket, QString str);
 // Получаем сообщение от клиента
     void ProcessMessageFromClient(QStringList& str_list);
+// Отправка всем подписавшемся о том, что их чат изменён (добавлено сообщение)
+    void NotifyAboutNewMessage(int message_id);
 };
 
 #endif // SERVER_H
