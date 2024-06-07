@@ -61,6 +61,81 @@ void Client::SentToServerStrings(QStringList &str_list, int num_of_strings)
     }
     socket->write(data);
 }
+
+void Client::ProcessNewMessageFromServer(QStringList &str_list)
+{
+    // 5 параметров: код (6), логин юзера отправителя, id сообщения, id чата, текст сообщения
+    // Нужно добавить новое сообщение в соответствующий чат
+    // Ищем среди контактов и групповых чатов нужный чат по id.
+
+    int f = 0; // Флаг, 0 - не найден, 1 - среди контактов, 2 - среди групповых чатов
+
+    int num_in_list;
+
+    //Поиск среди контактов
+    int num_of_contacts = contact_list.size();
+    for (int i = 0; i < num_of_contacts; ++i) {
+        if (contact_list[i].chat_id == str_list[3].toInt())
+        {
+            f =1;
+            num_in_list = i;
+            break;
+        }
+    }
+    // Поиск среди групповых чатов
+    int num_of_group_chats = group_chat_list.size();
+    if (f == 0)
+    {
+        for (int i = 0; i < num_of_group_chats; ++i)
+        {
+            if (group_chat_list[i].chat_id == str_list[3].toInt())
+            {
+                f = 2;
+                num_in_list = i;
+                break;
+            }
+        }
+    }
+
+    // todo: так же добавить обработчики для группового чата
+
+    if (f==1)
+    {
+         // Добавляем сообщение в список сообщений
+
+        message message;
+        message.message_id = str_list[2].toInt();
+        message.str_text = str_list[4];
+        message.user_login_sender = str_list[1];
+
+        contact_list[num_in_list].message_list.append(message);
+
+        //  Теперь смотрим какой чат активный, если этот, то обновляем его
+
+        if (current_chat_id == str_list[3].toInt())
+        {
+            // Обновляем чат в соответствии со списком сообщений
+            RefreshChat(contact_list[num_in_list].message_list);
+        }
+    }
+}
+
+void Client::RefreshChat(QList <message> message_list)
+{
+    // Полностью отрисовывает чат в соответствии со списком сообщений
+    // Одна из тех функций, которую можно оптимизировать, если качественно смотреть на место изменения (добавления сообщения в конец, изменение в середине, удаление из середины и т.п)
+    // Пока что просто заново выводит все сообщения
+
+    int num = message_list.size();
+
+
+    //?
+    ui->listWidget_chat->clear();
+    for (int i = 0; i <num; ++i) {
+        ui->listWidget_chat->addItem(message_list[i].user_login_sender + ": " + message_list[i].str_text);
+    }
+}
+
 // Отправит запрос на сервер на подключение уведомлений. Код 5. Передаём логин
 void Client::SubscribeForUpdates()
 {
@@ -95,7 +170,8 @@ void Client::slotReadyRead()
         in >> str;
         str_list.append(str);
         // Здесь смотрим код сообщения и вызываем соответствующую функцию обработчик.
-        // Регистрация прошла
+
+        // Получилось добавить контакт
         if (str_list[0]=="5")
         {
             in >> str;
@@ -103,6 +179,21 @@ void Client::slotReadyRead()
             in >> str;
             str_list.append(str);
             ProcessAddContactRespond(str_list);
+        }
+
+        // Обработка нового сообщения
+        // Параметры: код (6),  логин юзера отправителя, id сообщения, id чата, текст сообщения
+        if (str_list[0]=="6")
+        {
+            in >> str;
+            str_list.append(str);
+            in >> str;
+            str_list.append(str);
+            in >> str;
+            str_list.append(str);
+            in >> str;
+            str_list.append(str);
+            ProcessNewMessageFromServer(str_list);
         }
 
     }
@@ -123,14 +214,6 @@ void Client::ApplyContactsInfo()
 // Отправляем сообщение. Эта функция будет отправляеть сообщение на сервер
 void Client::on_pushButton_clicked()
 {
-    /* Надо бы сначало ответ от сервера получить
-    // Отправялем сообщение локально
-    QString text;
-    text = ui->lineEdit->text();
-
-    ui->listWidget_chat->addItem(login +": "+text);
-*/
-
     // Отправляем сообщение на сервер. Код 6, параметры - логин отправителя, id чата, текст сообщения.
 
     QStringList str_list;
@@ -140,9 +223,9 @@ void Client::on_pushButton_clicked()
     str_list.append(ui->textEdit_message_box->toPlainText());
     SentToServerStrings(str_list,4);
 
+    ui->textEdit_message_box->clear();
+
 }
-
-
 
 void Client::on_pushButton_get_contact_clicked()
 {
@@ -150,8 +233,24 @@ void Client::on_pushButton_get_contact_clicked()
     // Здесь реализуем отправку.
     // todo: Нужно так же чекнуть имеется ли уже этот человек в контактах.
 
+    // Считаем, что такого контакта ещё нет
+    int f = 1;
+    int num_of_contacts = contact_list.size();
+    QString wanted_contact = ui->textEdit_contact->toPlainText();
+
+
+    for (int i = 0; i < num_of_contacts; ++i) {
+        if(wanted_contact == contact_list[i].login)
+        {
+            f=0;
+            break;
+        }
+    }
+
     QString str;
 
+    if (f)
+    {
 
     // Инициализируем поток на вывод. Передаем  код 4, свой логин и логин желаемого контакта.
     data.clear();
@@ -164,7 +263,11 @@ void Client::on_pushButton_get_contact_clicked()
     str = ui->textEdit_contact->toPlainText();
     out << str;
     socket->write(data);
-
+    }
+    else
+    {
+        // Такой контакт уже есть
+    }
 
 }
 
@@ -191,7 +294,7 @@ void Client::ProcessAddContactRespond(QStringList& str_list)
     }
 }
 
-
+// Отрисовываем чат с контактом
 void Client::on_listWidget_contact_itemDoubleClicked(QListWidgetItem *item)
 {
     ui->listWidget_chat->clear();
@@ -204,7 +307,7 @@ void Client::on_listWidget_contact_itemDoubleClicked(QListWidgetItem *item)
         }
     }
     // Выводим соответствующий чат
-    for (int i = 0; i < contact_list[num].message_list.size(); ++i) {
+    for (int i = 0; i <contact_list[num].message_list.size(); ++i) {
         ui->listWidget_chat->addItem(contact_list[num].message_list[i].user_login_sender + ": " + contact_list[num].message_list[i].str_text);
     }
     // Заполняем данные о текущем чате

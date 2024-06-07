@@ -80,8 +80,6 @@ void Registration::slotReadyRead()
         if (str_list[0]=="2" || str_list[0]=="3")
             ProcessRegistrationRespond(str_list);
 
-
-
     }
     else
     {
@@ -148,6 +146,8 @@ void Registration::TransferClientInfo(QStringList &str_list, Client *client)
     int num_of_contacts;
     Contact buf;
     message buf_mesage;
+    QList <message> buf_list_messages;
+
     int buf_message_count;
 
     int j=2;
@@ -167,10 +167,19 @@ void Registration::TransferClientInfo(QStringList &str_list, Client *client)
             j++;
             buf_mesage.str_text = str_list[j];
             j++;
-            buf.message_list.append(buf_mesage);
+            buf_list_messages.append(buf_mesage);
         }
+        // Имеется небольшая проблема, мы заносим в список сообщения от самого недавнего до самого старого (задом наперёд)
+        // В идеале этот набор инвертировать, чтобы было легче добавлять новые сообщения для клиента
+        int size = buf_list_messages.size();
+
+        for (int i = size-1; i >= 0; --i) {
+            buf.message_list.append(buf_list_messages[i]);
+        }
+
         client->contact_list.append(buf);
         buf.message_list.clear();
+                buf_list_messages.clear();
     }
 
 
@@ -248,8 +257,6 @@ void Registration::on_pushButton_signin_clicked()
     }
 
 }
-
-
 
 void Registration::on_pushButton_register_clicked()
 {

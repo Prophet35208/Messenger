@@ -29,17 +29,15 @@ Server::~Server()
 
 // Принимаем подключение
 void Server::incomingConnection(qintptr socket_descriptor){
-    // Создаём сокет и устанвливаем его дескриптор
+    // Создаём сокет и устанавливаем его дескриптор
     socket = new QTcpSocket;
     socket->setSocketDescriptor(socket_descriptor);
     // Соединяем сигналы
     // Сигнал readyRead сокета (инофмрация готова к отправке) с нашей ф-ией обработки
     // Сигнал disconnected сокета со слотом на удаление сокета
     connect(socket, &QTcpSocket::readyRead, this, &Server::slotReadyRead);
-    connect(socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
+    connect(socket, &QTcpSocket::disconnected, this, &Server::slotDisconnectUser);
 
-    //Сохраняем сокет в векторе
-    sockets.push_back(socket);
 }
 
 // Обработка сообщений из сокета
@@ -116,15 +114,35 @@ void Server::slotReadyRead()
     }
 }
 
+void Server::slotDisconnectUser()
+{
+    // Удаляем пользователя из подписавшихся, после удаляем сокет
+    QTcpSocket* socket = (QTcpSocket*)sender();
+
+    int f=0;
+    auto it = list_subscribed_sockets.begin();
+    for (it; it != list_subscribed_sockets.end(); it++) {
+        if ((*it)->socket == socket)
+        {
+            f=1;
+            break;
+        }
+    }
+    if (f)
+        list_subscribed_sockets.erase(it);
+
+    socket->deleteLater();
+
+}
+
 // Получаем сокет и логин, на их основе организуем объект структуры и добавляем в список
 void Server::ProcessSubscriptionForUpdates(QTcpSocket* socket, QString str)
 {
     SubscriptedSocket* sub_socket = new SubscriptedSocket();
     sub_socket->socket = socket;
     sub_socket->login = str;
-    list_subscripted_sockets.append(sub_socket);
+    list_subscribed_sockets.append(sub_socket);
 }
-
 
 void Server::ProcessMessageFromClient(QStringList &str_list)
 {
@@ -139,8 +157,14 @@ void Server::ProcessMessageFromClient(QStringList &str_list)
     query.prepare("Select id_last_message From chat Where pk_chat = :id_chat");
     query.bindValue(":id_chat", str_list[2]);
     query.exec();
+
+
     if (query.next())
         id_last_message = query.value(0).toString();
+
+    // Учитываем, что чат может быть пустой
+    if (id_last_message == "")
+        id_last_message = "-1";
 
     // Получаем id юзера
     query.prepare("Select pk_user From user Where login = :login");
@@ -159,13 +183,59 @@ void Server::ProcessMessageFromClient(QStringList &str_list)
     query.exec();
     id_inserted_message = query.lastInsertId().toString();
 
+    // Обновляем параметр чата, чтобы он указывал на новое сообщение как последнее
     query.prepare("Update chat Set id_last_message = :message_id Where pk_chat = :id_chat");
     query.bindValue(":message_id", id_inserted_message);
     query.bindValue(":id_chat", str_list[2]);
     query.exec();
 
+    // Теперь нужно отослать уведомление тем подписавшимся юзерам, которые находятся в данном чате
+    // Уведомление о новом сообщении, параметры: код (6),  логин юзера отправителя, id сообщения, id чата, текст сообщения
+
+    // Подготовка параметров
+    QStringList str_params;
+    str_params.append("6");
+    str_params.append(str_list[1]);
+    str_params.append(id_inserted_message);
+    str_params.append(str_list[2]);
+    str_params.append(str_list[3]);
+
+    // Получение списка юзеров чата
+    QStringList str_logins;
+    query.prepare("Select login From user Where pk_user In (Select pk_user From user_in_chat Where pk_chat = :id_chat)");
+    query.bindValue(":id_chat", str_list[2]);
+    query.exec();
+    while (query.next()){
+        str_logins.append(query.value(0).toString());
+    }
+
+    int num_of_users;
+    num_of_users = str_logins.size();
+    int num_of_subscribed_sockets;
+    num_of_subscribed_sockets = list_subscribed_sockets.size();
+
+    // Инициализация потока для передачи
+    data.clear();
+    QDataStream out(&data, QIODevice::WriteOnly);
+    for (int i = 0; i < 5; ++i) {
+        out << str_params[i];
+    }
+
+    // Передача параметров всем подписавшимся
+    for (int i = 0; i < num_of_users; ++i) {
+        for (int j = 0; j < num_of_subscribed_sockets; ++j) {
+            if (str_logins[i] == list_subscribed_sockets[j]->login)
+            {
+                list_subscribed_sockets[j]->socket->write(data);
+                break;
+            }
+        }
+    }
+
+
 }
 
+// Пока что не используется
 void Server::NotifyAboutNewMessage(int message_id)
 {
     // Имеем id сообщения, нужно получить из бд чат, в котором оно находится. После этого список пользователей чата.
@@ -206,8 +276,7 @@ void Server::NotifyAboutNewMessage(int message_id)
 
 }
 
-
-// Передаём совокупность строк клиенту
+// Передаём совокупность строк клиенту, передача идёт на сокет в буфере!
 void Server::SentToClient(QStringList& str_list, int num_of_strings)
 {
     data.clear();
@@ -513,7 +582,7 @@ int Server::InitializeParamsForClientStartUp(QStringList &str_list, QString str_
             // Сообщения есть
 
             // Получим общее число сообщений
-            query.prepare("Select id_last_message From chat Where pk_chat = :id_chat");
+            query.prepare("Select count() From message Where pk_chat = :id_chat");
             query.bindValue(":id_chat", list_of_chats_id[i]);
             query.exec();
             if (query.next()){

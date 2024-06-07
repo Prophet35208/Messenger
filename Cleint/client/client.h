@@ -30,6 +30,15 @@ struct Contact
 
 };
 
+// Структура для групповых чатов. В ней хранятся чаты, где более 2 пользователей.
+// Хранит сам чат и список пользователей.
+struct GroupChat
+{
+    QStringList list_users;
+    qint64 chat_id;
+    QList <message> message_list;
+};
+
 
 class Client : public QMainWindow
 {
@@ -52,10 +61,15 @@ private:
     void QStringToQChar_ (QString& str,QChar *mas_char, int size);
     QTcpSocket *socket;
     void SentToServerStrings(QStringList& str_list, int num_of_strings);
+    void ProcessNewMessageFromServer(QStringList& str_list);
+
+    // Обновляем чат в соответствии с текущими сообщениями
+    void RefreshChat(QList <message> message_list);
 public:
     QString connection_address;
     QString login;
     QList <Contact> contact_list;
+    QList <GroupChat> group_chat_list;
     // Подписка на оповещения. Главныйм образом позволяет связать сокет и логин.
     void SubscribeForUpdates();
 
