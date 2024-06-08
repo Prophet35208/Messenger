@@ -107,6 +107,21 @@ void Server::slotReadyRead()
             ProcessMessageFromClient(str_list);
         }
 
+        if (str_list[0]=="7")
+        {
+            in >> str;
+            str_list.append(str);
+
+            int num = str_list[1].toInt();
+
+            for (int i = 0; i < num; ++i) {
+                in >> str;
+                str_list.append(str);
+            }
+            ProcessCreateGroupChat(str_list);
+        }
+
+
     }
     else
     {
@@ -466,6 +481,102 @@ void Server::ProcessGetContact(QStringList &str_list)
     }
 }
 
+void Server::ProcessCreateGroupChat(QStringList &str_list)
+{
+    // Получаем 2+n параметров, код, кол-во пользователей и сами пользователи
+    // Нужно чекнуть, можем ли вообще создать чат. Если да, то создаём и отправляем оповещение об этом всем подписавшимся, кто состоит в чате
+
+    int num_of_users = str_list[1].toInt();
+    QStringList str_logins;
+
+    // Перенос логинов в отдельный список, чтобы не запутаться
+    for (int i = 0; i < num_of_users; ++i) {
+        str_logins.append(str_list[2+i]);
+    }
+    // Получение всем id-ков юзеров
+    QStringList str_ids;
+    QSqlQuery query;
+    int f = 0; // Предполаем, что все логины есть в базе
+    for (int i = 0; i < num_of_users; ++i) {
+        query.prepare("Select pk_user From user WHere login = :login");
+        query.bindValue(":login", str_logins[i]);
+        query.exec();
+        if (query.next()){
+            str_ids.append(query.value(0).toString());
+            if (str_ids[i] == "")
+                f = 1;
+        }
+    }
+
+    if (f){
+        // Не все логины в базе
+        qDebug() << "Cant find login";
+    }
+    else
+    {
+        // Нужно создать чат на нужно кол-во пользователей и связать юзеров с этим чатом
+
+        // Создание чата
+
+        query.prepare("Insert Into chat(id_last_message, num_of_users) VALUES (-1, :num_of_users )");
+        query.bindValue(":num_of_users", num_of_users);
+        query.exec();
+        QString id_chat = query.lastInsertId().toString();
+
+        // Связывание пользователей
+        for (int i = 0; i < num_of_users; ++i) {
+
+            query.prepare("Insert Into user_in_chat(pk_user, pk_chat) VALUES (:id_user,:id_chat)");
+            query.bindValue(":id_user", str_ids[i]);
+            query.bindValue(":id_chat", id_chat);
+            query.exec();
+        }
+
+        // Теперь нужно уведомить юзеров о созданном чате
+        // Отсылаем клиенту код 7, id чата, кол-во юзеров вместе с ним, список юзеров вместе с ним
+        QStringList str_params;
+        QString str;
+        // Подготовка параметров
+        str = "7";
+        str_params.append(str);
+
+        str_params.append(id_chat);
+        str = QString::number(num_of_users);
+        str_params.append(str);
+
+        for (int i = 0; i < num_of_users; ++i) {
+            str_params.append(str_logins[i]);
+        }
+
+
+        // Инициализация потока для передачи
+        data.clear();
+        QDataStream out(&data, QIODevice::WriteOnly);
+        for (int i = 0; i < 3+num_of_users; ++i) {
+            out << str_params[i];
+        }
+
+        int num_of_subscribed_sockets = list_subscribed_sockets.size();
+
+
+        // Передача параметров всем подписавшимся
+        for (int i = 0; i < num_of_users; ++i) {
+            for (int j = 0; j < num_of_subscribed_sockets; ++j) {
+                if (str_logins[i] == list_subscribed_sockets[j]->login)
+                {
+                    list_subscribed_sockets[j]->socket->write(data);
+                    break;
+                }
+            }
+        }
+
+    }
+
+
+
+
+}
+
 void Server::ChatSerialization(QDataStream &stream, message *mas_message, int num_of_messages)
 {
     stream << num_of_messages;
@@ -618,6 +729,128 @@ int Server::InitializeParamsForClientStartUp(QStringList &str_list, QString str_
             }
         }
     }
+
+    // Дополнение: нужно дополнить сведениями о групповых чатах.
+    // Структура кол-во чатов, (id чата, кол-во участников, логины участников (n штук), кол-во сообщений и сами сообщения)
+    // Сообщения передадим так же как и выше
+
+    QStringList list_of_chats_id_group;
+    QStringList list_of_num_users_in_chat_group;
+    // Нам нужно хранить переменное число пользователей для каждого чата, чьё кол-во тоже переменное
+    QList <QStringList> list_of_lists_of_users_id;
+    QList <QStringList> list_of_lists_of_users_logins;
+
+    // Ищем чаты, где кол-во участников больше 2
+    // Записываем их id и кол-во участников в списки
+    query.prepare("Select pk_chat, num_of_users From chat Where num_of_users > 2 AND pk_chat IN (Select pk_chat From user_in_chat Where pk_user = :id_user)");
+    query.bindValue(":id_user", id_user);
+    query.exec();
+    while (query.next()){
+        list_of_chats_id_group.append(query.value(0).toString());
+        list_of_num_users_in_chat_group.append(query.value(1).toString());
+    }
+
+    // Записываем число чатов
+    str_list.append(QString::number(list_of_chats_id_group.size()));
+
+
+
+    // Инициализируем списки юзеров для чатов
+    int num = list_of_chats_id_group.size();
+    for (int i = 0; i < num; ++i) {
+        list_of_lists_of_users_id.append(QStringList());
+        list_of_lists_of_users_logins.append(QStringList());
+    }
+
+
+    // Смотрим число юзеров в каждом чате, записываем их логины и id
+    query.prepare("Select pk_user  From user_in_chat Where pk_chat = :id_chat");
+
+    query2.prepare("Select login From user Where pk_user = :user_id");
+
+    for (int i = 0; i < num; ++i) {
+        query.bindValue(":id_chat", list_of_chats_id_group[i]);
+        query.exec();
+        while (query.next()){
+            // Добавляем id юзеров чата
+            list_of_lists_of_users_id[i].append(query.value(0).toString());
+
+            query2.bindValue(":user_id", list_of_lists_of_users_id[i][list_of_lists_of_users_id[i].size()-1]);
+            query2.exec();
+            if (query2.next())
+                list_of_lists_of_users_logins[i].append(query2.value(0).toString());
+        }
+    }
+
+    // Имеем все чаты и их юзеров (логин и id). Теперь для каждого чата нужно найти сообщения
+    // И запаковать всё в поток
+
+    for (int i = 0; i < num; ++i) {
+        // id чата
+        str_list.append(list_of_chats_id_group[i]);
+        // Кол-во юзеров
+        str_list.append(list_of_num_users_in_chat_group[i]);
+        // Логины юзеров
+        for (int j = 0; j < list_of_num_users_in_chat_group[i].toInt(); ++j) {
+            str_list.append(list_of_lists_of_users_logins[i][j]);
+        }
+
+        // Получим номер последнего сообщения
+        query.prepare("Select id_last_message From chat Where pk_chat = :id_chat");
+        query.bindValue(":id_chat", list_of_chats_id_group[i]);
+        query.exec();
+        if (query.next()){
+            buf_str =  query.value(0).toString();
+            last_message_id = buf_str;
+        }
+        if (buf_str == "-1")
+        {
+            // Сообщений нет
+            str_list.append("0");
+
+        }
+        else
+        {
+            // Сообщения есть
+
+            // Получим общее число сообщений
+            query.prepare("Select count() From message Where pk_chat = :id_chat");
+            query.bindValue(":id_chat", list_of_chats_id_group[i]);
+            query.exec();
+            if (query.next()){
+                buf =  query.value(0).toInt();
+                str_list.append(query.value(0).toString());
+            }
+
+            QString buf_next_message_group;
+            // По очереди вытаскиваем сообщения и заносим их данные в сокет
+            for (int i = 0; i < buf; ++i) {
+                query.prepare("Select pk_previous, text, pk_user_sender, pk_previous  From message Where pk_message = :last_message_id");
+                query.bindValue(":last_message_id", last_message_id);
+                query.exec();
+                if (query.next()){
+                    buf_str  =  query.value(2).toString();
+                    buf_mes_text = query.value(1).toString();
+                    buf_next_message_group = query.value(3).toString();
+
+                }
+
+                // Найдём логин отправителя и сразу заносим 2 оставшихся параметра сообщения
+                query.prepare("Select login From user Where pk_user = :user_id");
+                query.bindValue(":user_id", buf_str);
+                query.exec();
+                if (query.next()){
+                    buf_str  =  query.value(0).toString();
+                    str_list.append(buf_str);
+                    str_list.append(buf_mes_text);
+                }
+                // Идём к следующему
+                last_message_id = buf_next_message_group;
+
+            }
+        }
+    }
+
     num_of_params = str_list.size();
     return num_of_params;
 

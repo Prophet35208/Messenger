@@ -5,6 +5,7 @@
 #include <QTcpSocket>
 #include <QString>
 #include <QListWidgetItem>
+#include <dialoggroupchat.h>>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -37,6 +38,7 @@ struct GroupChat
     QStringList list_users;
     qint64 chat_id;
     QList <message> message_list;
+
 };
 
 
@@ -53,6 +55,7 @@ private:
     // Определяем сокет и массив данных для него
     QByteArray data;
     int current_chat_id;
+    DialogGroupChat* d;
     // Запихиваем кол-во сообщений в чате, после чего все сообщения
     void ChatSerialization(QDataStream& stream, message* mas_message, int num_of_messages);
     // Достаём данные из бинарного потока
@@ -65,6 +68,8 @@ private:
 
     // Обновляем чат в соответствии с текущими сообщениями
     void RefreshChat(QList <message> message_list);
+    // Принимаем сообщение о новосозданном чате
+    void ProcessNewGroupChatFromServer(QStringList& str_list);
 public:
     QString connection_address;
     QString login;
@@ -83,5 +88,8 @@ private slots:
     void on_pushButton_get_contact_clicked();
     void ProcessAddContactRespond(QStringList& str_list);
     void on_listWidget_contact_itemDoubleClicked(QListWidgetItem *item);
+    void on_pushButton_get_group_chat_clicked();
+    void CreateGroupChat(QStringList str_list);
+    void on_listWidget_group_itemDoubleClicked(QListWidgetItem *item);
 };
 #endif // CLIENT_H

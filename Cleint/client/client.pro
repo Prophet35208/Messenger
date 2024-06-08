@@ -9,6 +9,7 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    dialoggroupchat.cpp \
     main.cpp \
     client.cpp \
     qlistmodel.cpp \
@@ -16,11 +17,13 @@ SOURCES += \
 
 HEADERS += \
     client.h \
+    dialoggroupchat.h \
     qlistmodel.h \
     registration.h
 
 FORMS += \
     client.ui \
+    dialoggroupchat.ui \
     registration.ui
 
 # Default rules for deployment.

@@ -45,8 +45,8 @@ void Registration::slotReadyRead()
         // Передача в лист переменного числа параметров
         if (str_list[0] == "1"){
             int num_of_contacts;
+            int num_of_messanges;
             QList <int> list_num_of_messages;
-            int j=0;
 
             in >> str;
             num_of_contacts = str.toInt();
@@ -61,16 +61,50 @@ void Registration::slotReadyRead()
 
                 in >> str;
                 str_list.append(str);
-                list_num_of_messages.append(str.toInt());
+                num_of_messanges = str.toInt();
 
-                for (int k = 0; k < list_num_of_messages[j]; ++k) {
+                for (int k = 0; k < num_of_messanges; ++k) {
                     in >> str;
                     str_list.append(str);
 
                     in >> str;
                     str_list.append(str);
                 }
-                j++;
+            }
+
+            // И для групповых чатов
+            int num_of_groups;
+            int num_of_users;
+
+            in >> str;
+            num_of_groups = str.toInt();
+            str_list.append(str);
+
+            for (int i = 0; i < num_of_groups; ++i) {
+
+                in >> str;
+                str_list.append(str);
+
+                in >> str;
+                num_of_users = str.toInt();
+                str_list.append(str);
+
+                for (int j = 0; j < num_of_users; ++j) {
+                    in >> str;
+                    str_list.append(str);
+                }
+
+                in >> str;
+                str_list.append(str);
+                num_of_messanges = str.toInt();
+
+                for (int k = 0; k < num_of_messanges; ++k) {
+                    in >> str;
+                    str_list.append(str);
+
+                    in >> str;
+                    str_list.append(str);
+                }
             }
         }
         // Здесь смотрим код сообщения и вызываем соответствующую функцию обработчик.
@@ -179,10 +213,46 @@ void Registration::TransferClientInfo(QStringList &str_list, Client *client)
 
         client->contact_list.append(buf);
         buf.message_list.clear();
-                buf_list_messages.clear();
+        buf_list_messages.clear();
     }
 
+    // Теперь с групповыми чатами.
+    int num_of_g_chats;
+    int num_of_users;
+    GroupChat buf_g;
+    message buf_mesage_g;
+    QList <message> buf_list_messages_g;
+    num_of_g_chats = str_list[j].toInt();
+    j++;
+    for (int i = 0; i < num_of_g_chats; ++i) {
 
+        buf_g.chat_id = str_list[j].toInt();
+        j++;
+        num_of_users = str_list[j].toInt();
+        j++;
+        for (int f = 0; f < num_of_users; ++f) {
+            buf_g.list_users.append(str_list[j]);
+            j++;
+        }
+
+        // Сообщения
+
+        buf_message_count = str_list[j].toInt();
+        j++;
+        for (int k = 0; k < buf_message_count; ++k) {
+            buf_mesage_g.user_login_sender = str_list[j];
+            j++;
+            buf_mesage_g.str_text = str_list[j];
+            j++;
+            buf_list_messages_g.append(buf_mesage_g);
+        }
+
+        client->group_chat_list.append(buf_g);
+        buf_g.message_list.clear();
+        buf_list_messages_g.clear();
+        buf_g.list_users.clear();
+
+    }
 }
 
 void Registration::RegistryOn()

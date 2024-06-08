@@ -145,6 +145,19 @@
      </rect>
     </property>
    </widget>
+   <widget class="QPushButton" name="pushButton_get_group_chat">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>224</y>
+      <width>75</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Добавить</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">

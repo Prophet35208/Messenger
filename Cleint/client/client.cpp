@@ -136,6 +136,41 @@ void Client::RefreshChat(QList <message> message_list)
     }
 }
 
+void Client::ProcessNewGroupChatFromServer(QStringList &str_list)
+{
+    // Принимаем 3 + n параметров
+    // Нужно создать объект GroupChat и отобразить его
+    // По факту нам не нужно много знать о чате, только его id для получения уведомлений от сервера и отправки сообщений
+    // Список юзеров можем использовать в качестве названия
+
+    int num_of_users = str_list[2].toInt();
+
+    // Заполняем структуру
+    GroupChat g_chat;
+    QString next_user;
+    // В список юзеров всех, кроме себя
+    for (int i = 0; i < num_of_users; ++i) {
+        next_user = str_list[3+i];
+        if (next_user != this->login)
+            g_chat.list_users.append(next_user);
+    }
+
+    g_chat.chat_id = str_list[1].toInt();
+
+    group_chat_list.append(g_chat);
+
+    // После этого выводим объект в gui
+    QString text = "Чат " + QString::number(g_chat.chat_id) + " : ";
+    for (int i = 0; i < num_of_users-1; ++i) {
+        text.append(g_chat.list_users[i]);
+        text.append(", ");
+    }
+
+    ui->listWidget_group->addItem(text);
+
+
+}
+
 // Отправит запрос на сервер на подключение уведомлений. Код 5. Передаём логин
 void Client::SubscribeForUpdates()
 {
@@ -195,6 +230,30 @@ void Client::slotReadyRead()
             str_list.append(str);
             ProcessNewMessageFromServer(str_list);
         }
+
+        if (str_list[0]=="7")
+        {
+            in >> str;
+            str_list.append(str);
+            in >> str;
+            str_list.append(str);
+
+            int num = str_list[2].toInt();
+
+            for (int i = 0; i < num; ++i) {
+                in >> str;
+                str_list.append(str);
+            }
+
+            ProcessNewGroupChatFromServer(str_list);
+        }
+
+
+
+
+
+
+
 
     }
     else
@@ -313,5 +372,81 @@ void Client::on_listWidget_contact_itemDoubleClicked(QListWidgetItem *item)
     // Заполняем данные о текущем чате
     current_chat_id = contact_list[num].chat_id;
 
+}
+
+// При клике вызваем окно для добавление нового чата.
+void Client::on_pushButton_get_group_chat_clicked()
+{
+    d = new DialogGroupChat();
+
+    int size = contact_list.size();
+    QStringList str_list;
+
+    str_list.append(this->login);
+    for (int i = 0; i < size; ++i) {
+        str_list.append(contact_list[i].login);
+    }
+    d->InitializeList(str_list);
+    d->login = this->login;
+    // Связываем сигнал с функцией на создание чата
+    connect (d, &DialogGroupChat::ContactsReadyToUse, this, &Client::CreateGroupChat);
+
+    d->show();
+}
+
+void Client::CreateGroupChat(QStringList str_list)
+{
+    // Получаем список контактов, из которых нужно создать чат.
+    // Отправляем запрос на сервер для создания чата
+    // Код 7, кол-во контактов, контакты по порядку. Итого 2+ n параметров, где n - второй параметр
+
+    QString str;
+    QStringList str_l;
+    str = "7";
+    str_l.append(str);
+
+    int size = str_list.size();
+    str = QString::number(size);
+    str_l.append(str);
+
+    for (int i = 0; i < size; ++i) {
+        str_l.append(str_list[i]);
+    }
+
+    SentToServerStrings(str_l,2+size);
+
+    d->close();
+    d->deleteLater();
+
+
+}
+
+
+void Client::on_listWidget_group_itemDoubleClicked(QListWidgetItem *item)
+{
+    // Выводим соответствующий групповой чат
+
+
+
+    ui->listWidget_chat->clear();
+    // Определяем id чата
+    QString name = item->text();
+    QStringList str_list = name.split(" ");
+    int id = str_list[1].toInt();
+
+    int num;
+    // Ищем среди групповых чатов
+    for (int i = 0; i < group_chat_list.size(); ++i) {
+        if (group_chat_list[i].chat_id == id){
+            num = i;
+            break;
+        }
+    }
+    // Выводим соответствующий чат
+    for (int i = 0; i <group_chat_list[num].message_list.size(); ++i) {
+        ui->listWidget_chat->addItem(contact_list[num].message_list[i].user_login_sender + ": " + group_chat_list[num].message_list[i].str_text);
+    }
+    // Заполняем данные о текущем чате
+    current_chat_id = group_chat_list[num].chat_id;
 }
 
