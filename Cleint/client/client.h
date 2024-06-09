@@ -79,10 +79,11 @@ public:
     void SubscribeForUpdates();
 
     void ReconnectToServer();
+    void ApplyContactsInfo();
+    void ApplyGroupChats();
 public slots:
     void slotReadyRead();
     // Применим полученныю информацию от сервера для отрисовки окна контактов.
-    void ApplyContactsInfo();
 private slots:
     void on_pushButton_clicked();
     void on_pushButton_get_contact_clicked();

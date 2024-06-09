@@ -27,29 +27,6 @@ Client::~Client()
 {
     delete ui;
 }
-void Client::ChatSerialization(QDataStream &stream, message* mas_message, int num_of_messages)
-{
-    stream << num_of_messages;
-    for (int i = 0; i < num_of_messages; ++i) {
-        stream << (*(mas_message+i)).user_login_sender;
-        stream << (*(mas_message+i)).user_login_receiver;
-        stream << (*(mas_message+i)).str_text;
-    }
-
-}
-
-int Client::ChatUnSerialization(QDataStream &stream, message *mas_message)
-{
-
-    int num_of_messages;
-    stream >> num_of_messages;
-    for (int i = 0; i < num_of_messages; ++i) {
-        stream >> (*(mas_message+i)).user_login_sender;
-        stream >> (*(mas_message+i)).user_login_receiver;
-        stream >> (*(mas_message+i)).str_text;
-    }
-    return num_of_messages;
-}
 
 void Client::SentToServerStrings(QStringList &str_list, int num_of_strings)
 {
@@ -118,6 +95,26 @@ void Client::ProcessNewMessageFromServer(QStringList &str_list)
             RefreshChat(contact_list[num_in_list].message_list);
         }
     }
+
+    if (f==2)
+    {
+        // Добавляем сообщение в список сообщений
+
+        message message;
+        message.message_id = str_list[2].toInt();
+        message.str_text = str_list[4];
+        message.user_login_sender = str_list[1];
+
+        group_chat_list[num_in_list].message_list.append(message);
+
+        //  Теперь смотрим какой чат активный, если этот, то обновляем его
+
+        if (current_chat_id == str_list[3].toInt())
+        {
+            // Обновляем чат в соответствии со списком сообщений
+            RefreshChat(group_chat_list[num_in_list].message_list);
+        }
+    }
 }
 
 void Client::RefreshChat(QList <message> message_list)
@@ -129,7 +126,7 @@ void Client::RefreshChat(QList <message> message_list)
     int num = message_list.size();
 
 
-    //?
+
     ui->listWidget_chat->clear();
     for (int i = 0; i <num; ++i) {
         ui->listWidget_chat->addItem(message_list[i].user_login_sender + ": " + message_list[i].str_text);
@@ -268,6 +265,27 @@ void Client::ApplyContactsInfo()
 
     for (int i = 0; i < num_of_contacts; ++i) {
         ui->listWidget_contact->addItem(contact_list[i].login);
+    }
+}
+
+void Client::ApplyGroupChats()
+{
+    int num_of_group_chats = group_chat_list.size();
+    int num_of_users;
+    QString text;
+
+    for (int i = 0; i < num_of_group_chats; ++i) {
+
+        text = "Чат " + QString::number(group_chat_list[i].chat_id) + " : ";
+        num_of_users = group_chat_list[i].list_users.size();
+
+        for (int j = 0; j < num_of_users; ++j) {
+            text.append(group_chat_list[i].list_users[j]);
+            text.append(" ");
+        }
+
+
+        ui->listWidget_group->addItem(text);
     }
 }
 // Отправляем сообщение. Эта функция будет отправляеть сообщение на сервер
@@ -444,7 +462,7 @@ void Client::on_listWidget_group_itemDoubleClicked(QListWidgetItem *item)
     }
     // Выводим соответствующий чат
     for (int i = 0; i <group_chat_list[num].message_list.size(); ++i) {
-        ui->listWidget_chat->addItem(contact_list[num].message_list[i].user_login_sender + ": " + group_chat_list[num].message_list[i].str_text);
+        ui->listWidget_chat->addItem(group_chat_list[num].message_list[i].user_login_sender + ": " + group_chat_list[num].message_list[i].str_text);
     }
     // Заполняем данные о текущем чате
     current_chat_id = group_chat_list[num].chat_id;

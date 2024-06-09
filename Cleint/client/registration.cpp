@@ -148,6 +148,7 @@ void Registration::ProcessLoginRespond(QStringList &str_list)
 
         TransferClientInfo(str_list,w);
         w->ApplyContactsInfo();
+        w->ApplyGroupChats();
         w->SubscribeForUpdates();
 
         w->show();
@@ -245,8 +246,9 @@ void Registration::TransferClientInfo(QStringList &str_list, Client *client)
             buf_mesage_g.str_text = str_list[j];
             j++;
             buf_list_messages_g.append(buf_mesage_g);
-        }
 
+        }
+        buf_g.message_list = buf_list_messages_g;
         client->group_chat_list.append(buf_g);
         buf_g.message_list.clear();
         buf_list_messages_g.clear();

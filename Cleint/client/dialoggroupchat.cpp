@@ -30,7 +30,7 @@ void DialogGroupChat::InitializeList(QStringList str_list)
 void DialogGroupChat::on_pushButton_clicked()
 {
     // Кнопку нажали, нужно посмотреть какие выбраны контакты. Если 0, то отклоняем
-    // Выбранные отсылаем, послыая сигнал
+    // Выбранные отсылаем, посылая сигнал
     int size = ui->listWidget->count();
     QStringList str_list;
 
@@ -39,7 +39,11 @@ void DialogGroupChat::on_pushButton_clicked()
         if (ui->listWidget->item(i)->checkState() == Qt::Checked)
             str_list.append( ui->listWidget->item(i)->text());
     }
-    emit ContactsReadyToUse(str_list);
+    if (str_list.size() <=2)
+        ui->label_2->setText("Выберете 3 или более пользователей");
+    else{
+            emit ContactsReadyToUse(str_list);
+    }
 
 }
 
