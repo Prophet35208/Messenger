@@ -69,6 +69,9 @@ void Registration::slotReadyRead()
 
                     in >> str;
                     str_list.append(str);
+
+                    in >> str;
+                    str_list.append(str);
                 }
             }
 
@@ -99,6 +102,9 @@ void Registration::slotReadyRead()
                 num_of_messanges = str.toInt();
 
                 for (int k = 0; k < num_of_messanges; ++k) {
+                    in >> str;
+                    str_list.append(str);
+
                     in >> str;
                     str_list.append(str);
 
@@ -202,6 +208,8 @@ void Registration::TransferClientInfo(QStringList &str_list, Client *client)
             j++;
             buf_mesage.str_text = str_list[j];
             j++;
+            buf_mesage.message_id = str_list[j].toInt();
+            j++;
             buf_list_messages.append(buf_mesage);
         }
         // Имеется небольшая проблема, мы заносим в список сообщения от самого недавнего до самого старого (задом наперёд)
@@ -245,8 +253,9 @@ void Registration::TransferClientInfo(QStringList &str_list, Client *client)
             j++;
             buf_mesage_g.str_text = str_list[j];
             j++;
+            buf_mesage_g.message_id = str_list[j].toInt();
+            j++;
             buf_list_messages_g.append(buf_mesage_g);
-
         }
         buf_g.message_list = buf_list_messages_g;
         client->group_chat_list.append(buf_g);

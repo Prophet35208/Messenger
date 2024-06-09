@@ -21,6 +21,9 @@ Client::Client(QWidget *parent)
 
     connect (socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
 
+    ui->listWidget_chat->setContextMenuPolicy(Qt::ActionsContextMenu);
+    ui->listWidget_chat->addAction("Удалить", this, &Client::removeItem);
+
 }
 
 Client::~Client()
@@ -74,7 +77,6 @@ void Client::ProcessNewMessageFromServer(QStringList &str_list)
         }
     }
 
-    // todo: так же добавить обработчики для группового чата
 
     if (f==1)
     {
@@ -115,6 +117,90 @@ void Client::ProcessNewMessageFromServer(QStringList &str_list)
             RefreshChat(group_chat_list[num_in_list].message_list);
         }
     }
+}
+
+void Client::ProcessDeleteMessageFromServer(QStringList &str_list)
+{
+    // Получаем 3 параметра: код, id чата, id сообщения
+
+    // Ищем чат
+    int f = 0; // Флаг, 0 - не найден, 1 - среди контактов, 2 - среди групповых чатов
+
+    int num_in_list;
+
+    //Поиск среди контактов
+    int num_of_contacts = contact_list.size();
+    for (int i = 0; i < num_of_contacts; ++i) {
+        if (contact_list[i].chat_id == str_list[1].toInt())
+        {
+            f =1;
+            num_in_list = i;
+            break;
+        }
+    }
+    // Поиск среди групповых чатов
+    int num_of_group_chats = group_chat_list.size();
+    if (f == 0)
+    {
+        for (int i = 0; i < num_of_group_chats; ++i)
+        {
+            if (group_chat_list[i].chat_id == str_list[1].toInt())
+            {
+                f = 2;
+                num_in_list = i;
+                break;
+            }
+        }
+    }
+
+
+    if (f==1)
+    {
+        // Удаляем из чата контактов
+
+        int size = contact_list[num_in_list].message_list.size();
+        int num = -1;
+
+        for (int i = 0; i < size; ++i) {
+            if (contact_list[num_in_list].message_list[i].message_id == str_list[2].toInt()){
+                num = i;
+                break;
+            }
+        }
+        if (num != -1)
+            contact_list[num_in_list].message_list.removeAt(num);
+
+        if (current_chat_id == str_list[1].toInt())
+        {
+            // Обновляем чат в соответствии со списком сообщений
+            RefreshChat(contact_list[num_in_list].message_list);
+        }
+    }
+
+    if (f==2)
+    {
+        // Удаляем из чата групп
+
+        int size = group_chat_list[num_in_list].message_list.size();
+        int num = -1;
+
+        for (int i = 0; i < size; ++i) {
+            if (group_chat_list[num_in_list].message_list[i].message_id == str_list[2].toInt()){
+                num = i;
+                break;
+            }
+        }
+        if (num != -1)
+            group_chat_list[num_in_list].message_list.removeAt(num);
+
+        if (current_chat_id == str_list[1].toInt())
+        {
+            // Обновляем чат в соответствии со списком сообщений
+            RefreshChat(group_chat_list[num_in_list].message_list);
+        }
+    }
+
+
 }
 
 void Client::RefreshChat(QList <message> message_list)
@@ -243,6 +329,16 @@ void Client::slotReadyRead()
             }
 
             ProcessNewGroupChatFromServer(str_list);
+        }
+
+        if (str_list[0]=="8")
+        {
+            in >> str;
+            str_list.append(str);
+            in >> str;
+            str_list.append(str);
+
+            ProcessDeleteMessageFromServer(str_list);
         }
 
 
@@ -439,12 +535,9 @@ void Client::CreateGroupChat(QStringList str_list)
 
 }
 
-
 void Client::on_listWidget_group_itemDoubleClicked(QListWidgetItem *item)
 {
     // Выводим соответствующий групповой чат
-
-
 
     ui->listWidget_chat->clear();
     // Определяем id чата
@@ -467,4 +560,75 @@ void Client::on_listWidget_group_itemDoubleClicked(QListWidgetItem *item)
     // Заполняем данные о текущем чате
     current_chat_id = group_chat_list[num].chat_id;
 }
+
+void Client::removeItem()
+{
+    // Получим номер строки
+    int num = ui->listWidget_chat->row(ui->listWidget_chat->currentItem());
+    // Найдём нужный чат
+    int f = 0; // Флаг, 0 - не найден, 1 - среди контактов, 2 - среди групповых чатов
+
+    int num_in_list;
+
+    //Поиск среди контактов
+
+    int num_of_contacts = contact_list.size();
+    for (int i = 0; i < num_of_contacts; ++i) {
+        if (contact_list[i].chat_id == current_chat_id)
+        {
+            f =1;
+            num_in_list = i;
+            break;
+        }
+    }
+    // Поиск среди групповых чатов
+    int num_of_group_chats = group_chat_list.size();
+    if (f == 0)
+    {
+        for (int i = 0; i < num_of_group_chats; ++i)
+        {
+            if (group_chat_list[i].chat_id == current_chat_id)
+            {
+                f = 2;
+                num_in_list = i;
+                break;
+            }
+        }
+    }
+
+    if (f==1)
+    {
+        // Удаляем сообщение из чата
+        //contact_list[num_in_list].message_list.removeAt(num);
+        // Отсылаем серверу сообщение о том, что сообщение нужно удалить
+        // Код 8 и id
+        QString id_message;
+        id_message = QString::number(contact_list[num_in_list].message_list[num].message_id);
+        QStringList str_list;
+        str_list.append("8");
+        str_list.append(id_message);
+        SentToServerStrings(str_list,2);
+
+    }
+
+    if (f==2)
+    {
+        // Удаляем сообщение из чата
+        //contact_list[num_in_list].message_list.removeAt(num);
+        // Отсылаем серверу сообщение о том, что сообщение нужно удалить
+        // Код 8 и id
+        QString id_message;
+        id_message = QString::number(group_chat_list[num_in_list].message_list[num].message_id);
+        QStringList str_list;
+        str_list.append("8");
+        str_list.append(id_message);
+        SentToServerStrings(str_list,2);
+
+
+    }
+
+}
+
+
+
 

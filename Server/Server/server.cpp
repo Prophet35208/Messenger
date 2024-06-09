@@ -121,6 +121,14 @@ void Server::slotReadyRead()
             ProcessCreateGroupChat(str_list);
         }
 
+        if (str_list[0]=="8")
+        {
+            in >> str;
+            str_list.append(str);
+
+            DeleteMessage(str_list);
+        }
+
 
     }
     else
@@ -577,27 +585,134 @@ void Server::ProcessCreateGroupChat(QStringList &str_list)
 
 }
 
-void Server::ChatSerialization(QDataStream &stream, message *mas_message, int num_of_messages)
+void Server::DeleteMessage(QStringList &str_list)
 {
-    stream << num_of_messages;
-    for (int i = 0; i < num_of_messages; ++i) {
-        stream << (*(mas_message+i)).message_num;
-        stream << (*(mas_message+i)).user_id_sender;
-        stream << (*(mas_message+i)).str;
+    // 2 параметра, второй - id сообщения
+
+    // Находим сообщение, получаем id прошлого и последующего
+    QSqlQuery query;
+
+    QString id_previous;
+    QString id_next;
+
+    query.prepare("Select pk_previous From message Where pk_message =:id_message");
+    query.bindValue(":id_message", str_list[1]);
+    query.exec();
+    if (query.next())
+        id_previous = (query.value(0).toString());
+
+    query.prepare("Select pk_message From message Where pk_previous = :id_message");
+    query.bindValue(":id_message", str_list[1]);
+    query.exec();
+    if (query.next())
+        id_next = (query.value(0).toString());
+    // 3 ситуации: в конце, середине, начале
+
+
+    // Если по середине
+    if (id_previous != "-1"   && id_next != "")
+    {
+        query.prepare("Update message Set pk_previous =:id_previous Where pk_message =:id_next");
+        query.bindValue(":id_previous", id_previous);
+        query.bindValue(":id_next", id_next);
+        if(query.exec());
+        else
+        {
+            qDebug() << "Some problem with query";
+        }
+    }
+
+    // Если в конце, меняем значение chat
+    if (id_previous != "-1" && id_next == "")
+    {
+        query.prepare("Update chat Set id_last_message = :id_previous Where pk_chat = (Select pk_chat From message Where pk_message =:id_previous )");
+        query.bindValue(":id_previous", id_previous);
+        if(query.exec());
+        else
+        {
+            qDebug() << "Some problem with query";
+        }
+    }
+
+    // Если в начале, то у следующего ставим -1 в previous
+    if (id_previous == "-1" && id_next != "")
+    {
+        query.prepare("Update message Set pk_previous = :minus Where pk_message = :id_next ");
+        query.bindValue(":id_next", id_next);
+        query.bindValue(":minus", "-1");
+        if(query.exec());
+        else
+        {
+            qDebug() << "Some problem with query";
+        }
+    }
+    // Если вообще последнее, то у чата ставим -1
+    if (id_previous == "-1" && id_next == "")
+    {
+        query.prepare("Update chat Set id_last_message = :minus Where pk_chat = (Select pk_chat From message Where pk_message = :id_message)");
+        query.bindValue(":id_message", str_list[1]);
+        query.bindValue(":minus", "-1");
+        if(query.exec());
+        else
+        {
+            qDebug() << "Some problem with query";
+        }
+    }
+
+    // Находим юзеров, связанных с ним
+    QStringList user_logins;
+    query.prepare("Select login From user Where pk_user In (Select pk_user From user_in_chat Where pk_chat = (Select pk_chat From message Where pk_message = :id_message))");
+    query.bindValue(":id_message", str_list[1]);
+    query.exec();
+    while (query.next())
+        user_logins.append((query.value(0).toString()));
+
+    // Вспоминаем чат, к которому относится сообщение
+    QString id_chat;
+    query.prepare("Select pk_chat From message Where pk_message = :id_message");
+    query.bindValue(":id_message", str_list[1]);
+    query.exec();
+    if (query.next())
+        id_chat = (query.value(0).toString());
+
+    // Теперь удаляем
+    query.prepare("Delete From message Where pk_message =:id_message");
+    query.bindValue(":id_message", str_list[1]);
+    query.exec();
+
+
+    // Говорим подписавшимся, что удалили сообщение с кодом n в чате m
+    // Отсылаем клиенту код 8, id чата, id сообщения
+    QStringList str_params;
+    QString str;
+    // Подготовка параметров
+    str = "8";
+    str_params.append(str);
+    str_params.append(id_chat);
+    str_params.append(str_list[1]);
+
+    // Инициализация потока для передачи
+    data.clear();
+    QDataStream out(&data, QIODevice::WriteOnly);
+    for (int i = 0; i < 3; ++i) {
+        out << str_params[i];
+    }
+
+    int num_of_subscribed_sockets = list_subscribed_sockets.size();
+    int num_of_users = user_logins.size();
+
+    // Передача параметров всем подписавшимся
+    for (int i = 0; i < num_of_users; ++i) {
+        for (int j = 0; j < num_of_subscribed_sockets; ++j) {
+            if (user_logins[i] == list_subscribed_sockets[j]->login)
+            {
+                list_subscribed_sockets[j]->socket->write(data);
+                break;
+            }
+        }
     }
 }
 
-int Server::ChatUnSerialization(QDataStream &stream, message *mas_message)
-{
-    int num_of_messages;
-    stream >> num_of_messages;
-    for (int i = 0; i < num_of_messages; ++i) {
-        stream >> (*(mas_message+i)).message_num;
-        stream >> (*(mas_message+i)).user_id_sender;
-        stream >> (*(mas_message+i)).str;
-    }
-    return num_of_messages;
-}
 // Кладёт в сокет параметры: 1, кол-во контактов, (логин контакта1, id чата с ним, сам чат (ф-ией ChatSerialization) n раз
 int Server::InitializeParamsForClientStartUp(QStringList &str_list, QString str_user_login)
 {
@@ -722,6 +837,7 @@ int Server::InitializeParamsForClientStartUp(QStringList &str_list, QString str_
                     buf_str  =  query.value(0).toString();
                     str_list.append(buf_str);
                     str_list.append(buf_mes_text);
+                    str_list.append(last_message_id);
                 }
                 // Идём к следующему
                 last_message_id = buf_next_message;
@@ -835,7 +951,7 @@ int Server::InitializeParamsForClientStartUp(QStringList &str_list, QString str_
 
                 }
 
-                // Найдём логин отправителя и сразу заносим 2 оставшихся параметра сообщения
+                // Найдём логин отправителя и сразу заносим 3 оставшихся параметра сообщения
                 query.prepare("Select login From user Where pk_user = :user_id");
                 query.bindValue(":user_id", buf_str);
                 query.exec();
@@ -843,6 +959,7 @@ int Server::InitializeParamsForClientStartUp(QStringList &str_list, QString str_
                     buf_str  =  query.value(0).toString();
                     str_list.append(buf_str);
                     str_list.append(buf_mes_text);
+                    str_list.append(last_message_id);
                 }
                 // Идём к следующему
                 last_message_id = buf_next_message_group;

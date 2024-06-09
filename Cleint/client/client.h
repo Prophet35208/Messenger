@@ -65,11 +65,14 @@ private:
     QTcpSocket *socket;
     void SentToServerStrings(QStringList& str_list, int num_of_strings);
     void ProcessNewMessageFromServer(QStringList& str_list);
+    void ProcessDeleteMessageFromServer(QStringList& str_list);
 
     // Обновляем чат в соответствии с текущими сообщениями
     void RefreshChat(QList <message> message_list);
     // Принимаем сообщение о новосозданном чате
     void ProcessNewGroupChatFromServer(QStringList& str_list);
+    // Меню для удаления
+    void ProvideContextMenu(const QPoint &);
 public:
     QString connection_address;
     QString login;
@@ -92,5 +95,6 @@ private slots:
     void on_pushButton_get_group_chat_clicked();
     void CreateGroupChat(QStringList str_list);
     void on_listWidget_group_itemDoubleClicked(QListWidgetItem *item);
+    void removeItem();
 };
 #endif // CLIENT_H
